@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superpowers 架构强制力 — 学习报告</title>
+<style>
+:root {
+  --bg: #08080c;
+  --surface: rgba(255,255,255,0.03);
+  --surface-hover: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.06);
+  --text: #ededef;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent-1: #f59e0b;
+  --accent-2: #ef4444;
+  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, 'Inter', system-ui, sans-serif;
+  --radius: 12px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.container { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+
+/* Mesh gradient background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(245,158,11,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(239,68,68,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(245,158,11,0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.container { position: relative; z-index: 1; }
+
+/* Header */
+.header { text-align: center; margin-bottom: 48px; }
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.header .subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.meta-chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+.stat-card .value {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-card .label { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+
+/* Progress Ring */
+.progress-ring-container {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+.ring-label {
+  font-size: 28px;
+  font-weight: 700;
+  fill: var(--text);
+  font-family: var(--font-mono);
+}
+.ring-sublabel {
+  font-size: 10px;
+  fill: var(--text-tertiary);
+}
+
+/* Dimension Sections */
+.dimension {
+  margin-bottom: 36px;
+}
+.dimension-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.dimension-header .dim-number {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-1);
+  background: rgba(245,158,11,0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.dimension-header .dim-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.dimension-header .dim-subtitle {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+
+/* Concept Nodes */
+.concept-node {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+.concept-node:hover { border-color: rgba(255,255,255,0.12); }
+.concept-node.mastered { border-left: 3px solid var(--green); }
+
+.node-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+.node-header:hover { background: var(--surface-hover); }
+
+.node-number {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  min-width: 24px;
+}
+.node-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+}
+.node-score {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.node-score.high { color: var(--green); background: rgba(52,211,153,0.1); }
+.node-score.mid { color: var(--amber); background: rgba(251,191,36,0.1); }
+.node-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: var(--green);
+  background: rgba(52,211,153,0.1);
+}
+.node-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+  flex-shrink: 0;
+}
+.concept-node.open .node-chevron { transform: rotate(90deg); }
+
+.node-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.concept-node.open .node-detail { max-height: 2000px; }
+.node-detail-inner {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Detail Sections */
+.detail-section {
+  margin-top: 12px;
+}
+.detail-section:first-child { margin-top: 0; }
+.detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.detail-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.source-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-1);
+  background: rgba(245,158,11,0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 2px 2px;
+}
+.key-phrase {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--green);
+  background: rgba(52,211,153,0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 2px 2px;
+  display: inline-block;
+}
+
+/* Q&A Block */
+.qa-block {
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  border-left: 2px solid var(--accent-1);
+}
+.qa-block .q {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+.qa-block .a {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Misconception block */
+.misconception {
+  background: rgba(248,113,113,0.06);
+  border-left: 2px solid var(--red);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.misconception .mc-label {
+  font-size: 11px;
+  color: var(--red);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.misconception .mc-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Five-Layer Defense Diagram */
+.layer-diagram {
+  margin: 16px 0;
+}
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.layer-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-1);
+  min-width: 16px;
+  font-weight: 700;
+}
+.layer-name {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+}
+.layer-defends {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* Misconceptions Section */
+.misconceptions-section {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.misconceptions-section h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--red);
+}
+
+/* Recommendations */
+.recommendations {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.recommendations h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.rec-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.rec-item .rec-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.rec-item .rec-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Footer */
+.footer {
+  margin-top: 48px;
+  text-align: center;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.footer p {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .container { padding: 24px 16px 60px; }
+  .header h1 { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--accent-1)"/>
+      <stop offset="100%" stop-color="var(--accent-2)"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>Superpowers 架构强制力与工作流约束哲学</h1>
+  <div class="subtitle">从顶级开源项目中提取"工作流强制力"模式，构建可执行的 AI 研发流水线</div>
+  <div class="meta-chips">
+    <span class="chip">11 个概念</span>
+    <span class="chip">3 个维度</span>
+    <span class="chip">3 个误区纠正</span>
+    <span class="chip">综合掌握 78%</span>
+  </div>
+  <div class="progress-ring-container">
+    <svg width="100" height="100" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+      <circle cx="50" cy="50" r="42" fill="none" stroke="url(#gradient)" stroke-width="6"
+        stroke-dasharray="264" stroke-dashoffset="58" stroke-linecap="round"
+        transform="rotate(-90 50 50)"
+        style="transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)"/>
+      <text x="50" y="46" text-anchor="middle" class="ring-label">78%</text>
+      <text x="50" y="60" text-anchor="middle" class="ring-sublabel">综合掌握度</text>
+    </svg>
+  </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="value">11</div>
+    <div class="label">概念总数</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="background:linear-gradient(135deg,#34d399,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">11</div>
+    <div class="label">已掌握</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">3</div>
+    <div class="label">误区纠正</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">3</div>
+    <div class="label">学习维度</div>
+  </div>
+</div>
+
+<!-- Dimension 1 -->
+<div class="dimension">
+  <div class="dimension-header">
+    <span class="dim-number">D1</span>
+    <span class="dim-title">强制约束与心理学提示词</span>
+    <span class="dim-subtitle">Coercion & Persuasion</span>
+  </div>
+
+  <!-- Concept 1 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">01</span>
+      <span class="node-title">会话启动劫持：Hook 作为"第一印象"攻击向量</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">hooks/session-start</span>
+        <span class="source-tag">using-superpowers/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          三层架构实现会话劫持：<strong>Hook 脚本</strong>提供程序性保证（模型必定看到），
+          <strong>&lt;EXTREMELY_IMPORTANT&gt;</strong> 标签提供注意力加权（训练数据中 "extremely important" 后面的内容需要优先处理），
+          <strong>Authority 语言</strong>提供行为锁定（训练数据中 "YOU MUST" 后面跟着服从行为）。
+          三层叠加 = 模型"被迫"在会话开始时就接受约束框架。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">关键短语</div>
+        <span class="key-phrase">YOU ABSOLUTELY MUST</span>
+        <span class="key-phrase">YOU DO NOT HAVE A CHOICE</span>
+        <span class="key-phrase">This is not negotiable</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">学习过程</div>
+        <div class="qa-block">
+          <div class="q">Q: 为什么用 Hook 注入而不是写成 Skill 等模型自己调用？</div>
+          <div class="a">程序性保证 > 提示性建议。Skill 是模型可以选择调用的，Hook 是模型无法绕过的。</div>
+        </div>
+        <div class="qa-block">
+          <div class="q">Q: 把 Authority 语言改成 "Please consider" 会怎样？</div>
+          <div class="a">同样的注入时机，行为结果不同。因为训练数据中 "please consider" 后面跟着的是选择性行为，而非强制行为。</div>
+        </div>
+      </div>
+      <div class="misconception">
+        <div class="mc-label">纠正的误区</div>
+        <div class="mc-text">误以为标签名有内在"高权重"。实际是训练数据统计模式——"extremely important" 在训练数据中与高优先级内容高频共现。</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 2 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">02</span>
+      <span class="node-title">Prompt 中的说服心理学：权威、承诺、稀缺性</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">writing-skills/persuasion-principles.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          三原则协同锁定模型行为：<br>
+          <strong>Authority</strong>（外部规则："YOU MUST"）→ 在被注入时生效<br>
+          <strong>Commitment</strong>（内部锁定：模型自己输出"我正在使用 TDD"）→ 模型的自输出成为后续行为的约束上下文（自生成上下文创造自洽压力）<br>
+          <strong>Social Proof</strong>（规范强化："每次都这样，不这样做就是失败"）→ 贯穿全程<br><br>
+          Liking 被标记为 Avoid，因为它引入竞争性目标——当"让用户开心"和"遵守流程"冲突时，模型会选择前者。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">学习过程</div>
+        <div class="qa-block">
+          <div class="q">Q: 为什么 TDD 铁律里加 "作为你的好伙伴，我希望你能先写测试" 会削弱强制力？</div>
+          <div class="a">Liking 原则引入竞争性目标。模型的目标从"遵守流程"变成"让用户喜欢我"。当用户赶时间说"跳过测试吧"，Liking 驱动的模型会顺从，Authority 驱动的模型会拒绝。</div>
+        </div>
+        <div class="qa-block">
+          <div class="q">Q: 为什么"说出来"（Commitment 宣布）能增强遵守概率？</div>
+          <div class="a">模型自己输出的内容会成为后续生成的上下文。声明"我正在使用 TDD"后，后续 token 预测会倾向与声明一致的行为。外部压力 + 内部自洽 + 规范锚定 = 三层锁定。</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 3 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">03</span>
+      <span class="node-title">反合理化表格与红旗检测：预判模型的借口</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">systematic-debugging 红旗表</span>
+        <span class="source-tag">TDD 红旗表</span>
+        <span class="source-tag">verification-before-completion 合理化预防表</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          设计模式：<strong>不阻止"偷懒的想法"本身，而是预判它一定会出现，然后预装 When/Then 触发动作。</strong><br><br>
+          模型找借口不是因为有 Commitment，而是因为训练数据中"跳过测试时先给自己找个理由"是人类程序员的高频行为模式。反合理化表格把"借口→反驳"配对预先写进上下文，当模型生成借口时，上下文中已有反驳，后续 token 自然跟着反驳走。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">关键短语</div>
+        <span class="key-phrase">Simple code breaks. Test takes 30 seconds.</span>
+        <span class="key-phrase">STOP. Return to Phase 1.</span>
+        <span class="key-phrase">Delete it. Start over.</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">设计模式</div>
+        <div class="detail-text">
+          "If you catch yourself thinking [X]" 比 "Don't think about X" 更有效——因为它承认模型一定会产生这个想法（训练数据模式），然后给出想法出现后的触发动作。这是 <strong>Implementation Intentions</strong>：Clear triggers + required actions = automatic execution。
+        </div>
+      </div>
+      <div class="misconception">
+        <div class="mc-label">纠正的误区</div>
+        <div class="mc-text">误以为找借口的行为源于 Commitment 原则。实际是训练数据中人类逃避行为模式的复现。借口→反驳配对预加载到上下文后，模型的自生成借口文本会触发预装的反驳。</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- Dimension 2 -->
+<div class="dimension">
+  <div class="dimension-header">
+    <span class="dim-number">D2</span>
+    <span class="dim-title">工程流转与状态交接</span>
+    <span class="dim-subtitle">Agentic SDLC</span>
+  </div>
+
+  <!-- Concept 4 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">04</span>
+      <span class="node-title">头脑风暴：brainstorming 如何在写代码前强制收敛需求</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/brainstorming/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          <strong>双重门控设计：</strong>第一次批准锁定方向，第二次批准捕获文档化偏差。<br><br>
+          从口头到书面不是"转录"而是"转化"——模型会填补未讨论的空白、把隐含的东西显式化、增加双方没约定的细节。spec 文档是下游整条链的<strong>契约/根门控</strong>，spec 错了后面全错。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">学习过程</div>
+        <div class="qa-block">
+          <div class="q">Q: 为什么需要两次用户批准而不是一次？</div>
+          <div class="a">第一次在设计展示后——锁定方向。第二次在 spec 文档审阅后——口头→书面是转化，必然产生偏差（填补空白、显式化隐含内容、增加未约定细节）。如果只在最后审批一次，可能发现整个过程都在错误方向。</div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">关键约束</div>
+        <span class="key-phrase">&lt;HARD-GATE&gt; Do NOT invoke any implementation skill until design approved &lt;/HARD-GATE&gt;</span>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 5 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">05</span>
+      <span class="node-title">计划即契约：writing-plans 如何创建不可违背的执行规格</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/writing-plans/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          <strong>链式传递中的"零上下文"原则：</strong>每个交接点的接收方都是零上下文启动（全新 subagent），因此每个交接输出必须完全自包含。<br><br>
+          Plan 中每个 Step 必须包含完整代码和预期命令输出，因为执行 Task N 的 subagent 从未被邀请参加 brainstorming，没看过 spec 讨论。它的上下文里<strong>只有 plan 文档中 Task N 那几段文字</strong>。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">架构原则</div>
+        <div class="detail-text">
+          三个 No Placeholders 背后是同一原则：<strong>任何依赖隐含上下文的交接都是失败点。</strong>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 6 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">06</span>
+      <span class="node-title">计划执行交接：subagent 双模式</span>
+      <span class="node-score mid">75%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/executing-plans/SKILL.md</span>
+        <span class="source-tag">skills/subagent-driven-development/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          两种执行模式：<strong>Inline Execution</strong>（单会话批量执行，有检查点）和 <strong>Subagent-Driven</strong>（每个 Task 派发全新 subagent + 两阶段审查：先 spec compliance 再 code quality）。<br><br>
+          spec compliance 必须先于 code quality——如果代码没实现 spec 要求的功能，代码写得再优雅也没意义。这是<strong>顺序门控</strong>原则。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">模型选择策略</div>
+        <div class="detail-text">
+          机械实现任务用便宜模型，集成判断任务用标准模型，架构/设计/审查任务用最强模型。这解释了为什么不信任 subagent 的 "success" 报告——它可能是能力最弱的模型。
+        </div>
+      </div>
+      <div class="misconception">
+        <div class="mc-label">纠正的误区</div>
+        <div class="mc-text">误以为 spec→quality 审查顺序和 worktree 基线验证的共同原则是 Commitment。实际是顺序门控（Sequential Gating）：先确认"做了正确的事"，再确认"把事做正确"。</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 7 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">07</span>
+      <span class="node-title">Git Worktree 隔离：分支物理隔离</span>
+      <span class="node-score mid">75%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/using-git-worktrees/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          创建隔离工作区后<strong>必须先跑一遍测试确认基线是干净的</strong>才能开始开发。如果基线测试就是红的，改完代码后跑测试还是红的——永远分不清是你搞坏的还是本来就坏的。<br><br>
+          这和 spec→quality 审查顺序是同一个原则：<strong>先建立已知良好基线，再在此基础上构建。</strong>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- Dimension 3 -->
+<div class="dimension">
+  <div class="dimension-header">
+    <span class="dim-number">D3</span>
+    <span class="dim-title">闭环验证防御</span>
+    <span class="dim-subtitle">Verification-Before-Completion</span>
+  </div>
+
+  <!-- Concept 8 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">08</span>
+      <span class="node-title">TDD 铁律：红-绿-重构作为强制门控</span>
+      <span class="node-score high">85%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/test-driven-development/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          <strong>"Delete it. Start over." 不是浪费，而是消除偏见源。</strong><br><br>
+          保留代码再补测试，测试会被实现绑架——变成"验证现有行为"而不是"定义期望行为"。Tests-after answer "What does this do?" Tests-first answer "What should this do?"<br><br>
+          这又是<strong>干净基线</strong>原则的变体：和 worktree 先验证基线、审查先 spec 后 quality 是同一个模式。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">学习过程</div>
+        <div class="qa-block">
+          <div class="q">Q: 为什么要求 delete 而不是 keep it and write tests around it？</div>
+          <div class="a">保留代码再补测试，模型会为了偷懒编写让现有代码能通过的测试，只测试能正常执行的功能，无法保证测试有效性。系统性风险：tests biased by implementation。</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 9 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">09</span>
+      <span class="node-title">完成前验证："禁止虚假成功"防御与 Gate Function</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/verification-before-completion/SKILL.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">Gate Function 五步</div>
+        <div class="detail-text" style="font-family:var(--font-mono);font-size:12px;line-height:2;">
+          1. IDENTIFY — 什么命令能证明这个 claim？<br>
+          2. RUN — 执行完整命令<br>
+          3. READ — 读取完整输出，检查 exit code，统计失败数<br>
+          4. VERIFY — 输出是否确认 claim？<br>
+          5. CLAIM — 只有这时才能声称结果<br>
+          <span style="color:var(--red);">Skip any step = lying, not verifying</span>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          "success" 是一个 claim，不是一个 fact。VCS diff 是 evidence。<br>
+          不信任 subagent 的 "success" 报告——执行 Task 的 subagent 可能是能力最弱的模型，它说 success 时可能根本没意识到自己漏了东西。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">关键短语</div>
+        <span class="key-phrase">Evidence before claims, always.</span>
+        <span class="key-phrase">Skip any step = lying, not verifying</span>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Concept 10 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">10</span>
+      <span class="node-title">系统化调试：四阶段根因分析与架构质疑机制</span>
+      <span class="node-score high">80%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">源码</div>
+        <span class="source-tag">skills/systematic-debugging/SKILL.md</span>
+        <span class="source-tag">defense-in-depth.md</span>
+        <span class="source-tag">root-cause-tracing.md</span>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">核心洞察</div>
+        <div class="detail-text">
+          <strong>3 次修复阈值的本质不是计数而是模式识别：</strong><br>
+          1 次是失误，2 次是运气差，3 次<strong>说明每次修复都在不同位置产生新问题</strong>。这时已经不是在 debug，而是在给一个根本性的结构缺陷打补丁。<br><br>
+          判断标准不是"修了 3 次没好"，而是"每次修复都暴露新的耦合或状态问题"。数量是表象，<strong>模式才是信号</strong>。
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">关键约束</div>
+        <span class="key-phrase">NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST</span>
+        <span class="key-phrase">Violating the letter of this process is violating the spirit of debugging.</span>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- Synthesis -->
+<div class="dimension">
+  <div class="dimension-header">
+    <span class="dim-number">S</span>
+    <span class="dim-title">综合：设计自己的强制系统</span>
+    <span class="dim-subtitle">Synthesis & Practice</span>
+  </div>
+
+  <!-- Concept 11 -->
+  <div class="concept-node mastered" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">11</span>
+      <span class="node-title">设计你自己的强制系统：全链路综合与实践</span>
+      <span class="node-score mid">72%</span>
+      <span class="node-badge">已掌握</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-section">
+        <div class="detail-label">五层防御体系</div>
+        <div class="layer-diagram">
+          <div class="layer-row">
+            <span class="layer-num">L0</span>
+            <span class="layer-name">模型思考之前</span>
+            <span class="layer-defends">Hook 注入 — 保证模型看到规则</span>
+          </div>
+          <div class="layer-row">
+            <span class="layer-num">L1</span>
+            <span class="layer-name">模型开始工作时</span>
+            <span class="layer-defends">Authority 铁律 + Commitment 宣布 — 锁定行为</span>
+          </div>
+          <div class="layer-row">
+            <span class="layer-num">L2</span>
+            <span class="layer-name">模型想偷懒时</span>
+            <span class="layer-defends">反合理化表格 — 堵死借口</span>
+          </div>
+          <div class="layer-row">
+            <span class="layer-num">L3</span>
+            <span class="layer-name">模型想跳步时</span>
+            <span class="layer-defends">顺序门控 + When/Then 触发器 — 强制走完流程</span>
+          </div>
+          <div class="layer-row">
+            <span class="layer-num">L4</span>
+            <span class="layer-name">模型说"做完了"时</span>
+            <span class="layer-defends">Gate Function — 必须给证据</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-label">诊断框架</div>
+        <div class="detail-text">
+          不同失败动机对应不同防御层：<br>
+          <strong>跳步</strong>（流程问题）→ Layer 3 门控<br>
+          <strong>找借口</strong>（心理问题）→ Layer 2 反合理化<br>
+          <strong>假完成</strong>（证据问题）→ Layer 4 Gate Function<br><br>
+          核心能力差距：能识别单个模式但难以自发组织成分层防御体系。诊断失败动机并选择防御层的能力需要持续练习。
+        </div>
+      </div>
+      <div class="misconception">
+        <div class="mc-label">纠正的误区</div>
+        <div class="mc-text">倾向于把所有问题统一归到"流程没走对"（Layer 1/3），忽略模型在不同阶段的失败动机不同。正确做法：先诊断失败动机（跳步/找借口/假完成），再选择对应防御层。</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- Misconceptions Summary -->
+<div class="misconceptions-section">
+  <h2>误区记录</h2>
+
+  <div class="concept-node mastered" style="border-left:3px solid var(--red)" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">M1</span>
+      <span class="node-title" style="color:var(--red)">过度套用 Commitment 框架（第 1 次）</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-text">误以为反合理化表格中"找借口"的行为源于 Commitment 原则。<br><br><strong>根因：</strong>过度套用 Commitment 框架，未理解借口的本质是训练数据中人类逃避行为模式的复现。<br><br><strong>纠正：</strong>借口→反驳配对预加载到上下文后，模型自生成的借口文本会触发预装的反驳，这是 Authority 的一种特殊形式（预先堵死逃跑路线），不是 Commitment。</div>
+    </div></div>
+  </div>
+
+  <div class="concept-node mastered" style="border-left:3px solid var(--red)" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">M2</span>
+      <span class="node-title" style="color:var(--red)">过度套用 Commitment 框架（第 2 次）</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-text">误以为 spec→quality 审查顺序和 worktree 基线验证的共同原则是 Commitment。<br><br><strong>根因：</strong>再次过度套用 Commitment 框架，将所有机制都归结为承诺/自洽。<br><br><strong>纠正：</strong>共同原则是<strong>顺序门控（Sequential Gating）</strong>——先确认"做了正确的事"，再确认"把事做正确"。没有干净基线，后续所有验证都是无效的。</div>
+    </div></div>
+  </div>
+
+  <div class="concept-node mastered" style="border-left:3px solid var(--red)" onclick="this.classList.toggle('open')">
+    <div class="node-header">
+      <span class="node-number">M3</span>
+      <span class="node-title" style="color:var(--red)">统一归因：把所有问题都归到"流程没走对"</span>
+      <svg class="node-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 4 10 8 6 12"/></svg>
+    </div>
+    <div class="node-detail"><div class="node-detail-inner">
+      <div class="detail-text">在综合实践中，将跳步、找借口、假完成全部归因到 Layer 1/3（流程/锁定），未区分模型在不同阶段的失败动机。<br><br><strong>根因：</strong>未区分跳步（流程问题）vs 找借口（心理问题）vs 假完成（证据问题）。<br><br><strong>纠正：</strong>诊断失败动机，选择对应防御层——跳步→Layer3门控，找借口→Layer2反合理化，假完成→Layer4 Gate Function。</div>
+    </div></div>
+  </div>
+</div>
+
+<!-- Recommendations -->
+<div class="recommendations">
+  <h2>后续练习方向</h2>
+  <div class="rec-item">
+    <div class="rec-title">1. 用实际案例做诊断练习</div>
+    <div class="rec-desc">找 3 个你团队实际遇到过的"模型不听话"案例，对每个用五层防御框架做诊断：失败对应哪一层缺失？</div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-title">2. 设计完整的 Layer 0-4 规则</div>
+    <div class="rec-desc">针对诊断结果，写一个完整的分层防御规则，确保每一层都有对应机制。不要只写一两层——五层全覆盖。</div>
+  </div>
+  <div class="rec-item">
+    <div class="rec-title">3. 实际测试并迭代</div>
+    <div class="rec-desc">把规则给模型用，观察它是否在预期的层被拦截了。如果没有，回到五层框架重新诊断，修改规则，再次测试。</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <p>Sigma Tutor Session — 2026-04-19</p>
+  <p style="margin-top:4px;">superpowers 架构强制力与工作流约束哲学 — 11 concepts mastered</p>
+</div>
+
+</div>
+
+<script>
+// Auto-expand all on load for full overview, then allow toggle
+document.querySelectorAll('.concept-node').forEach(node => {
+  // Start collapsed - click to expand
+});
+</script>
+
+</body>
+</html>

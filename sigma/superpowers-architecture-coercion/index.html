@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superpowers Skill 架构参考手册</title>
+<style>
+:root {
+  --bg:#08080c;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.06);--border-accent:rgba(255,255,255,0.12);
+  --text:#ededef;--text-secondary:rgba(255,255,255,0.55);--text-tertiary:rgba(255,255,255,0.3);
+  --accent-1:#f59e0b;--accent-2:#ef4444;--accent-3:#34d399;
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#06b6d4;--purple:#a855f7;
+  --font-mono:'SF Mono','Fira Code','JetBrains Mono',monospace;
+  --font-sans:-apple-system,'Inter',system-ui,sans-serif;
+  --radius:12px;--transition:cubic-bezier(0.4,0,0.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(245,158,11,0.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(52,211,153,0.05) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 60%);pointer-events:none;z-index:0}
+.container{max-width:720px;margin:0 auto;padding:2rem 1.5rem 4rem;position:relative;z-index:1}
+
+/* Header */
+.header{text-align:center;padding:4rem 0 3rem}
+.header .logo{font-size:.8rem;text-transform:uppercase;letter-spacing:.15em;color:var(--text-tertiary);margin-bottom:1rem;font-family:var(--font-mono)}
+.header h1{font-size:2.2rem;font-weight:700;background:linear-gradient(135deg,var(--accent-1),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em;margin-bottom:1rem;line-height:1.3}
+.header .desc{color:var(--text-secondary);font-size:.95rem;max-width:540px;margin:0 auto;line-height:1.8}
+.header .meta{display:flex;justify-content:center;gap:1.5rem;margin-top:1.5rem;flex-wrap:wrap}
+.header .meta-item{font-size:.78rem;color:var(--text-tertiary);font-family:var(--font-mono)}
+.header .meta-item strong{color:var(--text-secondary)}
+
+/* Defense layers bar */
+.layers-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:3rem;backdrop-filter:blur(12px);display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;justify-content:center}
+.layers-bar .lb-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);font-weight:600;margin-right:.25rem}
+.lb{display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .65rem;border-radius:6px;font-size:.72rem;font-family:var(--font-mono);border:1px solid}
+.lb.l0{background:rgba(239,68,68,0.08);color:var(--red);border-color:rgba(239,68,68,0.15)}
+.lb.l1{background:rgba(245,158,11,0.08);color:var(--amber);border-color:rgba(245,158,11,0.15)}
+.lb.l2{background:rgba(6,182,212,0.08);color:var(--cyan);border-color:rgba(6,182,212,0.15)}
+.lb.l3{background:rgba(52,211,153,0.08);color:var(--green);border-color:rgba(52,211,153,0.15)}
+.lb.l4{background:rgba(168,85,247,0.08);color:var(--purple);border-color:rgba(168,85,247,0.15)}
+.lb .arr{color:var(--text-tertiary);font-size:.65rem}
+
+/* Section label */
+.section-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-tertiary);margin-bottom:1.25rem;padding-left:.25rem;font-weight:600}
+
+/* Card grid */
+.card-grid{display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:2.5rem}
+
+/* Card */
+.card{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(12px);overflow:hidden;transition:all .3s var(--transition);text-decoration:none;color:inherit;cursor:pointer;position:relative}
+.card:hover{border-color:var(--border-accent);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.card:active{transform:translateY(0)}
+
+.card-num{display:flex;align-items:center;justify-content:center;width:64px;flex-shrink:0;font-family:var(--font-mono);font-size:1.4rem;font-weight:700;background:rgba(255,255,255,0.02);border-right:1px solid var(--border)}
+.card-num .num{opacity:.3}
+
+.card-body{padding:1.1rem 1.25rem;flex:1;min-width:0}
+.card-title{font-size:1.05rem;font-weight:600;margin-bottom:.35rem;display:flex;align-items:center;gap:.6rem}
+.card-title .cn{color:var(--text-secondary);font-size:.85rem;font-weight:400}
+.card-desc{font-size:.82rem;color:var(--text-secondary);line-height:1.65}
+.card-desc code{font-family:var(--font-mono);font-size:.74rem;background:rgba(255,255,255,0.05);padding:.1em .3em;border-radius:3px;color:var(--cyan)}
+
+.card-meta{display:flex;align-items:center;gap:.5rem;padding:.7rem 1.25rem;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.card-tag{display:inline-flex;padding:.15rem .45rem;border-radius:4px;font-size:.65rem;font-weight:600;border:1px solid var(--border);color:var(--text-tertiary)}
+.card-tag.design{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.12);color:var(--amber)}
+.card-tag.workflow{background:rgba(52,211,153,0.06);border-color:rgba(52,211,153,0.12);color:var(--green)}
+.card-tag.practical{background:rgba(6,182,212,0.06);border-color:rgba(6,182,212,0.12);color:var(--cyan)}
+.card-tag.reuse{background:rgba(168,85,247,0.06);border-color:rgba(168,85,247,0.12);color:var(--purple)}
+.card-arrow{margin-left:auto;color:var(--text-tertiary);font-size:.75rem;transition:color .2s var(--transition);flex-shrink:0}
+.card:hover .card-arrow{color:var(--accent-1)}
+
+/* Recommended reading order */
+.order-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:2.5rem;backdrop-filter:blur(12px)}
+.order-section h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:1rem}
+.order-list{list-style:none;counter-reset:order}
+.order-list li{counter-increment:order;display:flex;align-items:flex-start;gap:.75rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:.85rem;color:var(--text-secondary)}
+.order-list li:last-child{border-bottom:none}
+.order-list li::before{content:counter(order);display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:.7rem;font-weight:700;font-family:var(--font-mono);background:rgba(245,158,11,0.1);color:var(--accent-1);flex-shrink:0;margin-top:1px}
+.order-list li strong{color:var(--text);font-weight:600}
+
+/* Footer */
+.footer{margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-tertiary);font-size:.75rem;line-height:1.8}
+.footer code{font-family:var(--font-mono);font-size:.7rem;background:rgba(255,255,255,0.04);padding:.1em .3em;border-radius:3px}
+
+@media(max-width:640px){
+  .container{padding:1rem}
+  .header h1{font-size:1.6rem}
+  .card-num{width:48px}
+  .card-num .num{font-size:1.1rem}
+  .card-body{padding:.9rem 1rem}
+  .layers-bar{gap:.4rem}
+}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="header">
+  <div class="logo">superpowers architecture</div>
+  <h1>Skill 设计<br>参考手册</h1>
+  <p class="desc">
+    面向已理解五层防御框架与说服原则的开发者，助你精进 Skill 设计能力的五篇交互式参考文档。
+  </p>
+  <div class="meta">
+    <span class="meta-item"><strong>14</strong> 个 Skill 已分析</span>
+    <span class="meta-item"><strong>11</strong> 种设计模式</span>
+    <span class="meta-item"><strong>5</strong> 层防御</span>
+    <span class="meta-item"><strong>3</strong> 项说服原则</span>
+  </div>
+</header>
+
+<div class="layers-bar">
+  <span class="lb-label">防御层：</span>
+  <span class="lb l0">L0 注入</span><span class="arr">&rarr;</span>
+  <span class="lb l1">L1 锁定</span><span class="arr">&rarr;</span>
+  <span class="lb l2">L2 反合理化</span><span class="arr">&rarr;</span>
+  <span class="lb l3">L3 顺序门控</span><span class="arr">&rarr;</span>
+  <span class="lb l4">L4 证据</span>
+</div>
+
+<!-- 推荐阅读顺序 -->
+<div class="order-section">
+  <h3>推荐阅读顺序</h3>
+  <ol class="order-list">
+    <li><strong>设计模式</strong> &mdash; 先掌握词汇体系。从源码中提取的 11 种模式。</li>
+    <li><strong>核心 Skill 深度拆解</strong> &mdash; 在 8 个优先 Skill 中观察模式的实际运用。</li>
+    <li><strong>Skill 调用链</strong> &mdash; 理解 Skill 在完整 SDLC 流水线中如何互相调用。</li>
+    <li><strong>审查清单</strong> &mdash; 用它对照既定标准审计你自己的 Skill。</li>
+    <li><strong>模式复用映射</strong> &mdash; 将模式复制并改编到你的领域专属 Skill 中。</li>
+  </ol>
+</div>
+
+<!-- 第一部分 -->
+<div class="section-label">第一部分 &mdash; 模式</div>
+<div class="card-grid">
+
+<a class="card" href="skill-design-reference.html">
+  <div class="card-num"><span class="num">01</span></div>
+  <div class="card-body">
+    <div class="card-title">设计模式目录 <span class="cn">Design Patterns Directory</span></div>
+    <div class="card-desc">
+      11 种反复出现的设计模式，包含定义、适用场景、来源 Skill 及代码示例。
+      涵盖 <code>Iron Law</code>、<code>Anti-Rationalization Table</code>、<code>Red Flags</code>、<code>HARD-GATE</code>、
+      <code>Gate Function</code>、<code>When/Then Trigger</code> 等。
+    </div>
+  </div>
+  <div class="card-meta">
+    <span class="card-tag design">设计</span>
+    <span class="card-arrow">&rarr;</span>
+  </div>
+</a>
+
+<a class="card" href="skill-deep-analysis.html">
+  <div class="card-num"><span class="num">02</span></div>
+  <div class="card-body">
+    <div class="card-title">核心 Skill 深度拆解 <span class="cn">Core Skills Deep Analysis</span></div>
+    <div class="card-desc">
+      优先级 1-8 的 Skill 逐一剖析：设计目标、核心流程图、关键设计决策
+      （为何删除而非保留？为何取 3 而非 5？）、说服机制、防御层覆盖及源码摘录。
+    </div>
+  </div>
+  <div class="card-meta">
+    <span class="card-tag design">设计</span>
+    <span class="card-tag practical">分析</span>
+    <span class="card-arrow">&rarr;</span>
+  </div>
+</a>
+
+</div>
+
+<!-- 第二部分 -->
+<div class="section-label">第二部分 &mdash; 工作流</div>
+<div class="card-grid">
+
+<a class="card" href="skill-invocation-chain.html">
+  <div class="card-num"><span class="num">03</span></div>
+  <div class="card-body">
+    <div class="card-title">Skill 调用链 <span class="cn">Skill Invocation Chain</span></div>
+    <div class="card-desc">
+      从 <code>session-start hook</code> 到 <code>finishing-a-development-branch</code>
+      的完整 Agentic SDLC 流水线。14 个节点、22 条边。SVG 流程图附带逐节点详情卡片，
+      展示角色、连接关系与关键源码。
+    </div>
+  </div>
+  <div class="card-meta">
+    <span class="card-tag workflow">工作流</span>
+    <span class="card-arrow">&rarr;</span>
+  </div>
+</a>
+
+</div>
+
+<!-- 第三部分 -->
+<div class="section-label">第三部分 &mdash; 实践</div>
+<div class="card-grid">
+
+<a class="card" href="skill-review-checklist.html">
+  <div class="card-num"><span class="num">04</span></div>
+  <div class="card-body">
+    <div class="card-title">Skill 审查清单 <span class="cn">Skill Review Checklist</span></div>
+    <div class="card-desc">
+      6 个维度、50+ 项交互式检查：结构完整性、说服合规、防御层覆盖、
+      反合理化质量、触发可判定性、零上下文原则。支持持久化状态与分维度进度追踪。
+    </div>
+  </div>
+  <div class="card-meta">
+    <span class="card-tag practical">审计</span>
+    <span class="card-arrow">&rarr;</span>
+  </div>
+</a>
+
+<a class="card" href="pattern-reuse-mapping.html">
+  <div class="card-num"><span class="num">05</span></div>
+  <div class="card-body">
+    <div class="card-title">通用模式复用映射 <span class="cn">Pattern Reuse Mapping</span></div>
+    <div class="card-desc">
+      14 种模式映射到 4 个复用层级：<strong>直接复制</strong>、<strong>填写模板</strong>、
+      <strong>改编重写</strong>、<strong>仅概念参考</strong>。涵盖安全、数据库、API、
+      基础设施及合规等领域的业务示例。
+    </div>
+  </div>
+  <div class="card-meta">
+    <span class="card-tag reuse">复用</span>
+    <span class="card-tag practical">示例</span>
+    <span class="card-arrow">&rarr;</span>
+  </div>
+</a>
+
+</div>
+
+<footer class="footer">
+  来源：<code>superpowers/skills/</code> &mdash; 面向已理解五层防御框架（L0-L4）
+  及说服原则（Authority、Commitment、Social Proof）的开发者生成。
+</footer>
+
+</div>
+</body>
+</html>

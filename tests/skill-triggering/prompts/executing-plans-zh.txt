@@ -1,0 +1,1 @@
+我有一份计划文档在 docs/superpowers/plans/2024-01-15-auth-system.md，需要被执行。请实施它。

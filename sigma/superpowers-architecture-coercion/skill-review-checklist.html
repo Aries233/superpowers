@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill 审查清单</title>
+<style>
+:root {
+  --bg: #08080c;
+  --surface: rgba(255,255,255,0.03);
+  --surface-hover: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.06);
+  --border-accent: rgba(255,255,255,0.12);
+  --text: #ededef;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent-1: #f59e0b;
+  --accent-2: #ef4444;
+  --accent-3: #34d399;
+  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --cyan: #06b6d4;
+  --purple: #a855f7;
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, 'Inter', system-ui, sans-serif;
+  --radius: 12px;
+  --transition: cubic-bezier(0.4, 0, 0.2, 1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 15% 0%,rgba(245,158,11,0.06) 0%,transparent 50%),radial-gradient(ellipse at 85% 100%,rgba(239,68,68,0.04) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 60%);pointer-events:none;z-index:0}
+.container{max-width:880px;margin:0 auto;padding:2rem 1.5rem 4rem;position:relative;z-index:1}
+
+/* Header */
+.header{text-align:center;padding:3rem 0 2.5rem;border-bottom:1px solid var(--border);margin-bottom:2.5rem}
+.header h1{font-size:2rem;font-weight:700;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em;margin-bottom:0.75rem}
+.header .subtitle{color:var(--text-secondary);font-size:0.95rem;max-width:600px;margin:0 auto}
+
+/* Score Bar */
+.score-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:2rem;backdrop-filter:blur(12px);display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.score-bar-wrap .label{font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-tertiary);font-weight:600;white-space:nowrap}
+.score-track{flex:1;min-width:200px;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;position:relative}
+.score-fill{height:100%;border-radius:4px;background:var(--accent-gradient);transition:width 0.5s var(--transition);width:0%}
+.score-text{font-family:var(--font-mono);font-size:0.85rem;color:var(--text);white-space:nowrap;min-width:60px;text-align:right}
+
+/* Progress per section */
+.section-scores{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.section-score{display:flex;align-items:center;gap:0.4rem;padding:0.25rem 0.65rem;border-radius:6px;font-size:0.72rem;background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all 0.2s var(--transition)}
+.section-score:hover{border-color:var(--border-accent);background:var(--surface-hover)}
+.section-score .ss-num{font-family:var(--font-mono);color:var(--text-tertiary)}
+.section-score .ss-pct{font-weight:600}
+.section-score.complete .ss-pct{color:var(--green)}
+
+/* Controls */
+.controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.5rem}
+.ctrl-left{display:flex;gap:0.5rem}
+.ctrl-btn{padding:0.35rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:0.75rem;cursor:pointer;transition:all 0.2s var(--transition);font-family:var(--font-sans)}
+.ctrl-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border-accent)}
+.ctrl-btn.danger{color:var(--red);border-color:rgba(239,68,68,0.2)}
+.ctrl-btn.danger:hover{background:rgba(239,68,68,0.08)}
+
+/* Checklist Section */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1.25rem;backdrop-filter:blur(12px);overflow:hidden;transition:border-color 0.3s var(--transition)}
+.section-card:hover{border-color:var(--border-accent)}
+.section-header{display:flex;align-items:center;gap:0.75rem;padding:1rem 1.25rem;cursor:pointer;user-select:none}
+.section-header:hover{background:var(--surface-hover)}
+.section-num{font-family:var(--font-mono);font-size:0.7rem;color:var(--accent-1);flex-shrink:0}
+.section-title{font-size:0.95rem;font-weight:600;flex:1}
+.section-badge{display:inline-flex;align-items:center;gap:0.3rem;padding:0.15rem 0.5rem;border-radius:5px;font-size:0.68rem;font-weight:600;border:1px solid}
+.section-badge.s-struct{background:rgba(245,158,11,0.08);color:var(--amber);border-color:rgba(245,158,11,0.15)}
+.section-badge.s-persuade{background:rgba(239,68,68,0.08);color:var(--red);border-color:rgba(239,68,68,0.15)}
+.section-badge.s-defense{background:rgba(52,211,153,0.08);color:var(--green);border-color:rgba(52,211,153,0.15)}
+.section-badge.s-rational{background:rgba(6,182,212,0.08);color:var(--cyan);border-color:rgba(6,182,212,0.15)}
+.section-badge.s-trigger{background:rgba(168,85,247,0.08);color:var(--purple);border-color:rgba(168,85,247,0.15)}
+.section-badge.s-ctx{background:rgba(255,255,255,0.06);color:var(--text-secondary);border-color:var(--border)}
+.section-arrow{font-size:0.75rem;color:var(--text-tertiary);transition:transform 0.3s var(--transition)}
+.section-card.open .section-arrow{transform:rotate(180deg)}
+.section-body{display:none;padding:0 1.25rem 1.25rem;border-top:1px solid var(--border)}
+.section-card.open .section-body{display:block}
+
+/* Section description */
+.section-desc{color:var(--text-secondary);font-size:0.83rem;margin:0.75rem 0 1rem;line-height:1.7}
+
+/* Checklist Items */
+.check-item{display:flex;align-items:flex-start;gap:0.65rem;padding:0.6rem 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+.check-item:last-child{border-bottom:none}
+.check-item.checked{opacity:0.55}
+.check-item.checked .check-text{text-decoration:line-through;color:var(--text-tertiary)}
+.check-box{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border-accent);flex-shrink:0;margin-top:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s var(--transition);background:transparent}
+.check-box:hover{border-color:var(--accent-1);background:rgba(245,158,11,0.06)}
+.check-item.checked .check-box{background:var(--green);border-color:var(--green)}
+.check-item.checked .check-box::after{content:'✓';color:#000;font-size:11px;font-weight:700}
+.check-content{flex:1;min-width:0}
+.check-text{font-size:0.85rem;color:var(--text);line-height:1.6}
+.check-text code{font-family:var(--font-mono);font-size:0.78rem;background:rgba(255,255,255,0.06);padding:0.1em 0.35em;border-radius:3px;color:var(--cyan)}
+.check-sub{color:var(--text-tertiary);font-size:0.75rem;margin-top:0.2rem;line-height:1.5}
+.check-sub strong{color:var(--text-secondary);font-weight:500}
+.check-tag{display:inline-flex;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;margin-left:0.35rem;vertical-align:middle}
+.check-tag.required{background:rgba(239,68,68,0.1);color:var(--red)}
+.check-tag.recommended{background:rgba(245,158,11,0.1);color:var(--amber)}
+
+/* Severity indicators */
+.severity{font-size:0.65rem;font-family:var(--font-mono);padding:0.1rem 0.35rem;border-radius:3px;flex-shrink:0;margin-top:3px}
+.severity.critical{background:rgba(239,68,68,0.12);color:var(--red)}
+.severity.important{background:rgba(245,158,11,0.12);color:var(--amber)}
+.severity.minor{background:rgba(255,255,255,0.06);color:var(--text-tertiary)}
+
+/* Example callout */
+.example-callout{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;margin-top:0.5rem;font-family:var(--font-mono);font-size:0.75rem;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.example-callout .ex-good{color:var(--green)}
+.example-callout .ex-bad{color:var(--red)}
+.example-callout .ex-hl{background:rgba(245,158,11,0.1);display:inline;padding:0.1em 0.2em;border-radius:3px}
+
+/* Sub-toggle for examples */
+.ex-toggle{display:inline-flex;align-items:center;gap:0.3rem;padding:0.15rem 0.45rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-tertiary);font-size:0.68rem;cursor:pointer;margin-top:0.25rem;transition:all 0.2s var(--transition);font-family:var(--font-sans)}
+.ex-toggle:hover{border-color:var(--border-accent);color:var(--text-secondary)}
+.ex-toggle.open{color:var(--accent-1);border-color:rgba(245,158,11,0.2)}
+.ex-content{display:none;margin-top:0.5rem}
+.ex-toggle.open+.ex-content{display:block}
+
+/* Footer */
+.footer{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-tertiary);font-size:0.78rem}
+
+/* Responsive */
+@media(max-width:640px){
+  .container{padding:1rem}
+  .header h1{font-size:1.5rem}
+  .score-bar-wrap{flex-direction:column;align-items:stretch}
+  .section-body{padding:0 1rem 1rem}
+  .controls{flex-direction:column;align-items:stretch}
+  .ctrl-left{justify-content:center}
+}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="header">
+  <h1>Skill 审查清单</h1>
+  <p class="subtitle">针对任意 Skill 的系统性质量审计 — 6 个维度、50+ 检查项、来源可追溯的标准</p>
+</header>
+
+<div class="score-bar-wrap">
+  <span class="label">总体</span>
+  <div class="score-track"><div class="score-fill" id="scoreFill"></div></div>
+  <span class="score-text" id="scoreText">0 / 0</span>
+</div>
+
+<div class="section-scores" id="sectionScores"></div>
+
+<div class="controls">
+  <div class="ctrl-left">
+    <button class="ctrl-btn" onclick="toggleAllSections(true)">全部展开</button>
+    <button class="ctrl-btn" onclick="toggleAllSections(false)">全部折叠</button>
+  </div>
+  <button class="ctrl-btn danger" onclick="resetAll()">&#x2715; 重置</button>
+</div>
+
+<main id="checklist"></main>
+
+<footer class="footer">
+  标准提取自 superpowers/skills/ 源码 — Skill 设计参考 第 3 部分
+</footer>
+
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const sections = [
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. 结构完整性
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "structural",
+  num: "01",
+  title: "结构完整性",
+  titleCN: "结构完整性",
+  badgeClass: "s-struct",
+  description: "验证 Skill 是否包含所有必需的结构组件并遵循格式规范。基于 skills/writing-skills/SKILL.md 和 agentskills.io 规范。",
+  items: [
+    {
+      text: "YAML frontmatter 包含必需的 <code>name</code> 和 <code>description</code> 字段",
+      sub: "总计不超过 1024 个字符。<code>name</code> 仅使用字母、数字和连字符。",
+      tag: "required", severity: "critical",
+      example: { good: `---\nname: condition-based-waiting\ndescription: Use when tests have race conditions,\n  timing dependencies, or pass/fail inconsistently\n---`, bad: `---\nname: Async Test Helpers (v2)\ndescription: For async testing\n---` }
+    },
+    {
+      text: "<code>description</code> 以 \"Use when...\" 开头，且仅描述<em>触发条件</em>",
+      sub: "绝不要总结 skill 的流程或工作方式。描述 = 何时使用，而非做了什么。",
+      tag: "required", severity: "critical",
+      example: { good: `description: Use when executing implementation plans\n  with independent tasks in the current session`, bad: `description: Use when executing plans - dispatches\n  subagent per task with code review between tasks\n  ^^^ workflow summary - Claude follows this instead of reading skill` }
+    },
+    {
+      text: "<code>description</code> 使用第三人称书写",
+      sub: "会被注入系统提示中。第一人称（\"I can help\"）属于错误的上下文。",
+      tag: "required", severity: "important",
+      example: { good: `description: Use when encountering any bug, test failure,\n  or unexpected behavior, before proposing fixes`, bad: `description: I can help you with debugging when\n  tests are flaky` }
+    },
+    {
+      text: "描述使用具体的触发条件、症状和场景",
+      sub: "包含错误消息、症状、同义词、工具名称。除非 skill 是特定技术的，否则应与具体技术无关。",
+      tag: "recommended", severity: "important",
+      example: { good: `description: Use when tests have race conditions,\n  timing dependencies, or pass/fail inconsistently`, bad: `description: For async testing` }
+    },
+    {
+      text: "包含 <code># Overview</code> 部分，用 1-2 句话阐述核心原则",
+      sub: "这是未来的 Claude 加载 skill 后首先扫描的内容。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "包含 <code>## When to Use</code> 部分，列出具体症状和反模式",
+      sub: "用要点列表列出症状。对于纪律型 skill，应包含\"不要在以下情况跳过\"和\"尤其在以下情况使用\"。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "包含 <code>## Common Mistakes</code> 或 <code>## Red Flags</code> 部分",
+      sub: "帮助 agent 自我检查。使用表格格式（| 错误 | 修正 |）或带补救措施的要点列表。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "代码示例使用单一语言、真实场景，并解释原因",
+      sub: "一个优秀的示例胜过许多平庸的示例。根据领域选择语言：测试用 TS/JS，调试用 Shell/Python。",
+      tag: "recommended", severity: "minor"
+    },
+    {
+      text: "token 预算与加载频率匹配",
+      sub: "入门型：<150 词。高频加载：<200 词。其他：<500 词。使用 <code>wc -w</code> 测量。",
+      tag: "recommended", severity: "important"
+    },
+    {
+      text: "包含快速参考表格或章节，便于快速浏览",
+      sub: "使用表格、清单或简短的要点列表，以便在执行过程中快速查阅。",
+      tag: "recommended", severity: "minor"
+    }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. 说服原则合规
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "persuasion",
+  num: "02",
+  title: "说服原则合规",
+  titleCN: "说服原则合规",
+  badgeClass: "s-persuade",
+  description: "验证 Skill 使用了适合其类型的说服原则，并避免适得其反的原则。基于 skills/writing-skills/persuasion-principles.md（Cialdini 2021; Meincke et al. 2025）。",
+  items: [
+    {
+      text: "纪律执行型 skill 使用<strong>权威</strong>语言",
+      sub: "\"YOU MUST\"、\"NEVER\"、\"Always\"、\"No exceptions\"。消除决策疲劳。使用祈使语气，而非含糊其辞。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Write code before test? Delete it. Start over.\nNo exceptions.</span>`, bad: `<span class="ex-bad">Consider writing tests first when feasible.\nIt's generally a good practice.</span>` }
+    },
+    {
+      text: "纪律执行型 skill 使用<strong>承诺</strong>机制",
+      sub: "要求宣布、强制明确选择或使用 TodoWrite 追踪。创建一致性压力。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Announce at start: "I'm using the writing-plans\nskill to create the implementation plan."</span>`, bad: `<span class="ex-bad">Consider letting your partner know which\nskill you're using.</span>` }
+    },
+    {
+      text: "纪律执行型 skill 使用<strong>社会认同</strong>进行规范强化",
+      sub: "\"Every time\"、\"Always\"、通用模式。确立偏离是例外而非常态。",
+      tag: "required", severity: "important",
+      example: { good: `<span class="ex-good">Checklists without TodoWrite tracking =\nsteps get skipped. Every time.</span>`, bad: `<span class="ex-bad">Some people find TodoWrite helpful\nfor checklists.</span>` }
+    },
+    {
+      text: "<strong>好感</strong>原则未用于合规执行",
+      sub: "与诚实的反馈文化相冲突。会导致阿谀奉承。\"You're absolutely right!\" 是 CLAUDE.md 违规行为。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Fixed. [Brief description of what changed]</span>`, bad: `<span class="ex-bad">You're absolutely right! Great point!\nLet me implement that now.</span>` }
+    },
+    {
+      text: "<strong>互惠</strong>原则未使用（或极少使用）",
+      sub: "可能让人感到被操纵。在 skill 中几乎不需要。其他原则更有效。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "说服原则的选择与 skill 类型匹配",
+      sub: "纪律型：权威 + 承诺 + 社会认同。指导型：适度权威 + 一致性。协作型：一致性 + 承诺。参考型：仅清晰性。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "明确的规则减少了合理化的机会",
+      sub: "\"YOU MUST\" 消除决策疲劳。绝对性语言消除了\"这是例外吗？\"的疑问。",
+      tag: "recommended", severity: "important",
+      example: { good: `<span class="ex-good">NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST</span>`, bad: `<span class="ex-bad">It's recommended to write tests before\nproduction code when possible.</span>` }
+    },
+    {
+      text: "主动使用不超过 2-3 个说服原则",
+      sub: "不要全部使用七个。过度使用会稀释每个原则的效果，并造成语气不协调。",
+      tag: "recommended", severity: "minor"
+    }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. 防御层覆盖
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "defense",
+  num: "03",
+  title: "防御层覆盖",
+  titleCN: "防御层覆盖",
+  badgeClass: "s-defense",
+  description: "验证 Skill 是否覆盖了五层防御框架中的适当层级（L0 注入 → L1 锁定 → L2 反合理化 → L3 顺序门控 → L4 证据验证）。",
+  items: [
+    {
+      text: "<strong>L0 注入：</strong>Skill 可以被未来的 Claude 实例发现和加载",
+      sub: "CSO（Claude Search Optimization）：description 使用可搜索的关键词，name 使用主动语态（动词优先），skill 位于扁平命名空间中。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "<strong>L0 注入：</strong>Description 在正确的症状上触发，而不仅仅是任务名称",
+      sub: "包含错误消息（\"Hook timed out\"）、症状（\"flaky\"、\"hanging\"）、同义词（\"timeout/hang/freeze\"）。",
+      tag: "recommended", severity: "important"
+    },
+    {
+      text: "<strong>L1 锁定：</strong>Skill 包含铁律或等效的绝对规则",
+      sub: "使用全大写的围栏块、\"No exceptions\"、祈使语气。这是防止在压力下偏离的行为锚点。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST</span>`, bad: `<span class="ex-bad">Try to find the root cause before fixing.</span>` }
+    },
+    {
+      text: "<strong>L1 锁定：</strong>Skill 包含精神重于字面条款（适用于纪律型 skill）",
+      sub: "\"违反此规则的字面意思，就是违反此规则的精神。\" 从根源上切断了一整类合理化借口。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "<strong>L2 反合理化：</strong>Skill 包含合理化表格或等效机制",
+      sub: "两列表格（| 借口 | 现实 |），捕获基线测试中出现的真实合理化借口。每个借口都有具体、明确的反驳。",
+      tag: "required", severity: "critical",
+      example: { good: `| "Too simple to test" | Simple code breaks.\n  Test takes 30 seconds. |`, bad: `| Some people skip tests | This is not recommended |` }
+    },
+    {
+      text: "<strong>L2 反合理化：</strong>合理化借口收集自实际基线测试",
+      sub: "不是凭空猜测的。在不加载 skill 的情况下运行压力场景，逐字记录 agent 的说辞，然后添加反驳。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "<strong>L2 反合理化：</strong>Skill 包含用于执行期间自我检查的红旗列表",
+      sub: "列出危险内部想法的要点列表，配合统一的补救措施（\"以下所有情况都意味着：STOP\"）。合理化表格的运行时版本。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "<strong>L3 顺序门控：</strong>多步骤流程具有强制顺序和完成标准",
+      sub: "每个阶段都有明确的进入/退出条件。不能跳过阶段、并行化或在门控条件满足之前推进。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">You MUST complete each phase before proceeding.\nPhase 1 → Phase 2 → Phase 3 → Phase 4</span>`, bad: `<span class="ex-bad">Here are some steps you might follow...\nFeel free to adapt the order.</span>` }
+    },
+    {
+      text: "<strong>L4 证据验证：</strong>声明需要新鲜的、可观察的证据",
+      sub: "不是\"应该可以\"或\"我有信心\"。必须运行实际命令并展示输出。始终先有证据，再有断言。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "<strong>L4 证据验证：</strong>验证步骤指定了精确的命令和预期输出",
+      sub: "不是\"运行测试\"，而是\"运行 <code>pytest tests/path/test.py::test_name -v</code>\" 并附带预期的 PASS/FAIL 结果。",
+      tag: "recommended", severity: "important"
+    },
+    {
+      text: "所包含的防御层与 skill 类型相匹配",
+      sub: "纪律型 skill 需要全部 5 层。指导型 skill 需要 L0+L1。参考型 skill 仅需 L0。在参考型 skill 中过度设计防御会增加不必要的 token 消耗。",
+      tag: "recommended", severity: "minor"
+    }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. 反合理化质量
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "anti-rationalization",
+  num: "04",
+  title: "反合理化质量",
+  titleCN: "反合理化质量",
+  badgeClass: "s-rational",
+  description: "验证 Skill 的反合理化机制是否全面、具体且经过实战检验。薄弱的合理化反驳是 skill 在压力下失败的首要原因。",
+  items: [
+    {
+      text: "每个漏洞都被<em>明确</em>堵住，而不仅仅是陈述了主要规则",
+      sub: "不要只说\"不要做 X\"——还要禁止具体的变通方法：\"不要把它当作'参考'保留。不要'改编'它。\"",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Write code before test? Delete it. Start over.\n\nNo exceptions:\n- Don't keep it as "reference"\n- Don't "adapt" it while writing tests\n- Don't look at it\n- Delete means delete</span>`, bad: `<span class="ex-bad">Write code before test? Delete it.</span>` }
+    },
+    {
+      text: "合理化反驳是<em>具体</em>的，而非模糊的",
+      sub: "\"Simple code breaks. Test takes 30 seconds.\" 是具体的。\"This is not recommended.\" 是模糊的、可以忽略的。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">| "Tests after achieve same goals" |\n| Tests-after = "what does this do?"\n| Tests-first = "what should this do?" |</span>`, bad: `<span class="ex-bad">| "Skip testing" | Not recommended |` }
+    },
+    {
+      text: "合理化表格覆盖了<em>多重压力</em>场景",
+      sub: "时间压力 + 沉没成本 + 疲劳。多重压力叠加是 agent 最容易失败的时机。表格应该反映这一点。",
+      tag: "recommended", severity: "important"
+    },
+    {
+      text: "\"精神与字面\"合理化被预先阻断",
+      sub: "在 skill 的早期就包含该条款：\"违反此规则的字面意思，就是违反此规则的精神。\"",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "红旗列表捕获的是<em>内心想法</em>，而不仅仅是外部行为",
+      sub: "\"我已经手动测试过了\"（想法）→ 删除代码（行为）。Agent 需要识别思维模式，而不仅仅是行为模式。",
+      tag: "required", severity: "important",
+      example: { good: `<span class="ex-good">- "I already manually tested it"\n- "Tests after achieve the same purpose"\n- "It's about spirit not ritual"</span>`, bad: `<span class="ex-bad">- Don't skip tests\n- Don't write code first\n- Always follow TDD` }
+    },
+    {
+      text: "红旗具有统一、明确的补救措施",
+      sub: "每条红旗都应指向同一个纠正动作：\"以下所有情况都意味着：[具体动作]\"。对于该做什么没有任何歧义。",
+      tag: "required", severity: "important",
+      example: { good: `<span class="ex-good">ALL of these mean: Delete code.\nStart over with TDD.</span>`, bad: `<span class="ex-bad">If you notice any of these, consider\nrevisiting your approach.</span>` }
+    },
+    {
+      text: "合理化借口收集自<em>实际</em>基线测试，而非凭空编造",
+      sub: "在不加载 skill 的情况下使用 subagent 运行压力场景。逐字记录它们的说辞。然后添加反驳。未经测试的合理化表格会遗漏真实的漏洞。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "包含\"这次不一样，因为...\"的兜底条款",
+      sub: "这是最顽固的合理化模式。将其明确列在红旗中，关闭这个万能的逃避通道。",
+      tag: "required", severity: "important"
+    }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. When/Then 触发器可判定性
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "trigger",
+  num: "05",
+  title: "When/Then 触发器可判定性",
+  titleCN: "When/Then 触发器可判定性",
+  badgeClass: "s-trigger",
+  description: "验证每个 When/Then 触发条件可以被 agent 机械地评估，无需主观判断。模糊的触发器会创建合理化趁虚而入的决策点。",
+  items: [
+    {
+      text: "描述中的触发器是<em>可观察</em>的，而非主观的",
+      sub: "\"Tests have race conditions\"（可观察）vs \"code quality is poor\"（主观）。Agent 必须能够仅凭消息内容判断是否触发。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Use when tests have race conditions, timing\ndependencies, or pass/fail inconsistently</span>`, bad: `<span class="ex-bad">Use when the codebase needs improvement</span>` }
+    },
+    {
+      text: "每个触发条件映射到恰好一个动作",
+      sub: "\"When X, do Y\"——而非\"When X, consider Y or Z\"。模糊的动作 = 决策点 = 合理化机会。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">When receiving code review feedback:\n1. READ: Complete feedback without reacting\n2. UNDERSTAND: Restate requirement\n3. VERIFY: Check against codebase</span>`, bad: `<span class="ex-bad">When getting feedback, consider the\nsuggestions and decide what to implement.</span>` }
+    },
+    {
+      text: "流程图决策节点使用<em>机械</em>条件",
+      sub: "\"Tests pass?\"（运行命令，检查退出码）vs \"Is this simple?\"（主观）。每个菱形节点都应有机械可评估的条件。",
+      tag: "required", severity: "important"
+    },
+    {
+      text: "\"When to Use\" 要点列出的是<em>症状</em>，而非<em>判断</em>",
+      sub: "\"Test failures\"（症状）vs \"When quality matters\"（判断）。症状是可观察的；判断会招致合理化。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">- Test failures\n- Bugs in production\n- Unexpected behavior\n- Performance problems</span>`, bad: `<span class="ex-bad">- When accuracy is important\n- When you want reliable code\n- For production-quality work</span>` }
+    },
+    {
+      text: "铁律条件是<em>二元的</em>，而非<em>渐变的</em>",
+      sub: "\"NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST\"（二元：测试存在或不存在）vs \"Write tests before most code\"（渐变：什么算'大多数'？）。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">NO COMPLETION CLAIMS WITHOUT\nFRESH VERIFICATION EVIDENCE</span>`, bad: `<span class="ex-bad">Try to verify your work before\nclaiming completion when feasible.</span>` }
+    },
+    {
+      text: "门控函数步骤具有<em>可衡量</em>的完成标准",
+      sub: "每个步骤都应产生可观察的产物：命令输出、文件变更、测试结果——而非感觉或估算。",
+      tag: "required", severity: "important",
+      example: { good: `<span class="ex-good">1. IDENTIFY: What command proves this claim?\n2. RUN: Execute the FULL command\n3. READ: Full output, check exit code\n4. VERIFY: Does output confirm the claim?\n5. ONLY THEN: Make the claim</span>`, bad: `<span class="ex-bad">1. Think about whether the work is done\n2. Consider running some tests\n3. If things look good, report completion</span>` }
+    },
+    {
+      text: "没有触发器使用\"when appropriate\"、\"when feasible\"或\"if needed\"",
+      sub: "这些含糊措辞会创建决策点。用具体条件替换，或去掉模糊修饰。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Use when implementing any feature or bugfix,\nbefore writing implementation code</span>`, bad: `<span class="ex-bad">Use when implementing features where\nTDD would be appropriate</span>` }
+    },
+    {
+      text: "CSO 描述不总结工作流程",
+      sub: "描述中的工作流摘要会成为 agent 遵循的捷径，使其跳过阅读完整 skill。只写触发条件。",
+      tag: "required", severity: "critical"
+    }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. 零上下文原则
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "zero-context",
+  num: "06",
+  title: "零上下文原则",
+  titleCN: "零上下文原则",
+  badgeClass: "s-ctx",
+  description: "验证 Skill 可以被对项目、代码库或对话历史没有任何先验上下文的 agent 正确执行。这是应用于 skill 设计本身的\"零上下文交接\"原则。",
+  items: [
+    {
+      text: "Skill 是自包含的——理解核心行为无需任何外部引用",
+      sub: "仅阅读此 skill 文件的 agent 必须能够遵循流程。交叉引用用于深入阅读，而非核心理解。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "指令中不包含\"你已经知道\"的假设",
+      sub: "\"As you may recall\"、\"from our earlier discussion\"、\"as we discussed\"——这些都假设了新加载的 agent 不具备的上下文。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Run: pytest tests/path/test.py::test_name -v\nExpected: FAIL with "function not defined"</span>`, bad: `<span class="ex-bad">Run the tests like we did before.\nYou should see the same failures as last time.</span>` }
+    },
+    {
+      text: "所有文件路径都是<em>精确且完整</em>的，而非相对于未说明的位置",
+      sub: "\"编辑配置文件\"（哪个？在哪？）vs \"编辑 <code>~/.claude/settings.json</code>\"（精确路径）。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">Files:\n- Create: src/auth/token-validator.py\n- Modify: src/auth/login.py:45-62\n- Test: tests/auth/test_token.py</span>`, bad: `<span class="ex-bad">Update the auth module to add validation.\nAdd tests for the new functionality.</span>` }
+    },
+    {
+      text: "所有命令都包含预期输出，而不仅仅是命令本身",
+      sub: "零上下文的 agent 无法仅凭命令区分\"测试通过\"和\"测试通过但有警告\"，除非看到预期输出。",
+      tag: "required", severity: "important",
+      example: { good: `<span class="ex-good">Run: npm test\nExpected: PASS\nOutput: 34 tests, 34 passed, 0 failures</span>`, bad: `<span class="ex-bad">Run: npm test\n(should pass)</span>` }
+    },
+    {
+      text: "代码示例是<em>完整且可运行的</em>，而非片段",
+      sub: "\"添加错误处理\"却不展示代码，不符合零上下文要求。展示要写的精确代码。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">if (!data.email?.trim()) {\n  return { error: 'Email required' };\n}</span>`, bad: `<span class="ex-bad">Add appropriate email validation.\nHandle edge cases.</span>` }
+    },
+    {
+      text: "没有\"TBD\"、\"TODO\"、\"implement later\"或\"fill in details\"占位符",
+      sub: "每个步骤都必须包含所需的实际内容。占位符迫使 agent 猜测——在零上下文下猜测尤其不可靠。",
+      tag: "required", severity: "critical"
+    },
+    {
+      text: "subagent 调度的上下文嵌入在提示中，而非假设已知",
+      sub: "\"提供完整文本，而不是让 subagent 去读取文件。\" 关于任务所处位置的场景设置上下文必须包含在内。",
+      tag: "required", severity: "critical",
+      example: { good: `<span class="ex-good">## Context\n[Scene-setting: where this fits, dependencies,\narchitectural context]\n\n## Task Description\n[FULL TEXT of task from plan - paste it here]</span>`, bad: `<span class="ex-bad">## Task\nImplement Task 3 from the plan.\nYou can read the plan file for details.</span>` }
+    },
+    {
+      text: "缩写和领域术语在首次使用时进行定义",
+      sub: "零上下文的 agent 不知道\"TDD\"、\"CSO\"、\"YAGNI\"或项目特定术语的含义。应予定义或链接。",
+      tag: "recommended", severity: "important"
+    },
+    {
+      text: "错误消息和失败模式以原文展示",
+      sub: "\"测试应该失败\"vs \"预期：FAIL，输出 'ReferenceError: retryOperation is not defined'\"。原文输出消除了歧义。",
+      tag: "required", severity: "important"
+    }
+  ]
+}
+];
+
+// ============================================================
+// RENDER
+// ============================================================
+
+const checklistEl = document.getElementById('checklist');
+const scoreFill = document.getElementById('scoreFill');
+const scoreText = document.getElementById('scoreText');
+const sectionScoresEl = document.getElementById('sectionScores');
+
+let totalItems = 0;
+let checkedItems = new Set();
+
+// Count total
+sections.forEach(s => { totalItems += s.items.length; });
+
+// Render sections
+sections.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'section-card open';
+  card.id = s.id;
+
+  card.innerHTML = `
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">${s.num}</span>
+      <span class="section-title">${s.title}</span>
+      <span class="section-badge ${s.badgeClass}">${s.items.length} 项检查</span>
+      <span class="section-arrow">&#9660;</span>
+    </div>
+    <div class="section-body">
+      <div class="section-desc">${s.description}</div>
+      ${s.items.map((item, i) => {
+        const uid = `${s.id}-${i}`;
+        return `
+        <div class="check-item" id="item-${uid}">
+          <div class="check-box" onclick="toggleCheck('${uid}',this)"></div>
+          <div class="check-content">
+            <div class="check-text">
+              ${item.text}
+              ${item.tag ? `<span class="check-tag ${item.tag}">${item.tag}</span>` : ''}
+              ${item.severity ? `<span class="severity ${item.severity}">${item.severity}</span>` : ''}
+            </div>
+            ${item.sub ? `<div class="check-sub">${item.sub}</div>` : ''}
+            ${item.example ? `
+              <button class="ex-toggle" onclick="toggleEx(this)">示例</button>
+              <div class="ex-content">
+                <div class="example-callout">${item.example.good ? `<span class="ex-good">&#10003; 正确:</span>\n${item.example.good}` : ''}${item.example.bad ? `\n\n<span class="ex-bad">&#10007; 错误:</span>\n${item.example.bad}` : ''}</div>
+              </div>
+            ` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  checklistEl.appendChild(card);
+});
+
+// Section score pills
+sections.forEach(s => {
+  const pill = document.createElement('div');
+  pill.className = 'section-score';
+  pill.id = `ss-${s.id}`;
+  pill.onclick = () => document.getElementById(s.id).scrollIntoView({behavior:'smooth',block:'start'});
+  pill.innerHTML = `<span class="ss-num">${s.num}</span>${s.titleCN} <span class="ss-pct" id="ss-pct-${s.id}">0%</span>`;
+  sectionScoresEl.appendChild(pill);
+});
+
+function updateScore() {
+  const total = totalItems;
+  const checked = checkedItems.size;
+  const pct = total > 0 ? Math.round(checked / total * 100) : 0;
+  scoreFill.style.width = pct + '%';
+  scoreText.textContent = `${checked} / ${total}`;
+
+  sections.forEach(s => {
+    let secTotal = s.items.length;
+    let secChecked = 0;
+    s.items.forEach((_, i) => {
+      if (checkedItems.has(`${s.id}-${i}`)) secChecked++;
+    });
+    const secPct = secTotal > 0 ? Math.round(secChecked / secTotal * 100) : 0;
+    const el = document.getElementById(`ss-pct-${s.id}`);
+    if (el) el.textContent = secPct + '%';
+    const pill = document.getElementById(`ss-${s.id}`);
+    if (pill) pill.classList.toggle('complete', secPct === 100);
+  });
+
+  // Persist
+  try { localStorage.setItem('skill-checklist-state', JSON.stringify([...checkedItems])); } catch(e) {}
+}
+
+function toggleCheck(uid, box) {
+  const item = document.getElementById('item-' + uid);
+  if (checkedItems.has(uid)) {
+    checkedItems.delete(uid);
+    item.classList.remove('checked');
+  } else {
+    checkedItems.add(uid);
+    item.classList.add('checked');
+  }
+  updateScore();
+}
+
+function toggleSection(header) {
+  header.parentElement.classList.toggle('open');
+}
+
+function toggleEx(btn) {
+  btn.classList.toggle('open');
+}
+
+function toggleAllSections(open) {
+  document.querySelectorAll('.section-card').forEach(c => {
+    open ? c.classList.add('open') : c.classList.remove('open');
+  });
+}
+
+function resetAll() {
+  if (!confirm('重置所有已勾选项？')) return;
+  checkedItems.clear();
+  document.querySelectorAll('.check-item').forEach(el => el.classList.remove('checked'));
+  updateScore();
+}
+
+// Restore state
+try {
+  const saved = JSON.parse(localStorage.getItem('skill-checklist-state') || '[]');
+  saved.forEach(uid => {
+    if (document.getElementById('item-' + uid)) {
+      checkedItems.add(uid);
+      document.getElementById('item-' + uid).classList.add('checked');
+    }
+  });
+} catch(e) {}
+
+updateScore();
+</script>
+</body>
+</html>

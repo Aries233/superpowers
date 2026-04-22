@@ -1,0 +1,8 @@
+我有 4 个独立的测试失败，分别发生在不同的模块中：
+
+1. tests/auth/login.test.ts - "should redirect after login" 失败
+2. tests/api/users.test.ts - "should return user list" 返回 500
+3. tests/components/Button.test.tsx - 快照不匹配
+4. tests/utils/date.test.ts - 时区处理出错
+
+这些是代码库不同部分中互不相关的问题。你能调查一下所有这些问题吗？

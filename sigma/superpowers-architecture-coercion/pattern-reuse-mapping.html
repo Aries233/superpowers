@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pattern Reuse Mapping</title>
+<style>
+:root {
+  --bg:#08080c;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.06);--border-accent:rgba(255,255,255,0.12);
+  --text:#ededef;--text-secondary:rgba(255,255,255,0.55);--text-tertiary:rgba(255,255,255,0.3);
+  --accent-1:#f59e0b;--accent-2:#ef4444;--accent-3:#34d399;
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#06b6d4;--purple:#a855f7;
+  --font-mono:'SF Mono','Fira Code','JetBrains Mono',monospace;
+  --font-sans:-apple-system,'Inter',system-ui,sans-serif;
+  --radius:12px;--transition:cubic-bezier(0.4,0,0.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 15% 0%,rgba(245,158,11,0.06) 0%,transparent 50%),radial-gradient(ellipse at 85% 100%,rgba(52,211,153,0.04) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 60%);pointer-events:none;z-index:0}
+.container{max-width:920px;margin:0 auto;padding:2rem 1.5rem 4rem;position:relative;z-index:1}
+
+.header{text-align:center;padding:3rem 0 2.5rem;border-bottom:1px solid var(--border);margin-bottom:2.5rem}
+.header h1{font-size:2rem;font-weight:700;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em;margin-bottom:.75rem}
+.header .subtitle{color:var(--text-secondary);font-size:.95rem;max-width:640px;margin:0 auto}
+
+/* Legend */
+.legend{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:2rem;backdrop-filter:blur(12px)}
+.legend h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:.75rem}
+.legend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem}
+.legend-item{display:flex;align-items:flex-start;gap:.5rem;font-size:.8rem;color:var(--text-secondary);line-height:1.5}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;margin-top:4px}
+.legend-dot.copy{background:var(--green)}
+.legend-dot.template{background:var(--amber)}
+.legend-dot.adapt{background:var(--cyan)}
+.legend-dot.inspire{background:var(--purple)}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
+.filter-label{font-size:.75rem;color:var(--text-tertiary);margin-right:.25rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.filter-btn{padding:.3rem .7rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:.75rem;cursor:pointer;transition:all .2s var(--transition);font-family:var(--font-sans)}
+.filter-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border-accent)}
+.filter-btn.active{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.25);color:var(--accent-1)}
+.filter-btn.active-copy{background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.25);color:var(--green)}
+.filter-btn.active-template{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.25);color:var(--amber)}
+.filter-btn.active-adapt{background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.25);color:var(--cyan)}
+.filter-btn.active-inspire{background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.25);color:var(--purple)}
+
+/* Search */
+.search-wrap{position:relative;margin-bottom:1.5rem}
+.search-input{width:100%;padding:.65rem 1rem .65rem 2.25rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.85rem;font-family:var(--font-sans);outline:none;transition:border-color .2s var(--transition);backdrop-filter:blur(8px)}
+.search-input:focus{border-color:var(--accent-1)}
+.search-icon{position:absolute;left:.8rem;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-size:.8rem;pointer-events:none}
+
+/* Pattern card */
+.pattern-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1.25rem;backdrop-filter:blur(12px);overflow:hidden;transition:border-color .3s var(--transition)}
+.pattern-card:hover{border-color:var(--border-accent)}
+.pattern-card.hidden{display:none}
+
+.pattern-header{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;cursor:pointer;user-select:none}
+.pattern-header:hover{background:var(--surface-hover)}
+.p-num{font-family:var(--font-mono);font-size:.7rem;color:var(--accent-1);flex-shrink:0}
+.p-name{font-size:1rem;font-weight:600;flex:1}
+.p-arrow{font-size:.75rem;color:var(--text-tertiary);transition:transform .3s var(--transition)}
+.pattern-card.open .p-arrow{transform:rotate(180deg)}
+
+.pattern-body{display:none;padding:0 1.25rem 1.25rem;border-top:1px solid var(--border)}
+.pattern-card.open .pattern-body{display:block}
+
+/* Reuse badge */
+.reuse-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:5px;font-size:.68rem;font-weight:600;letter-spacing:.02em;flex-shrink:0}
+.reuse-badge.copy{background:rgba(52,211,153,0.12);color:var(--green);border:1px solid rgba(52,211,153,0.2)}
+.reuse-badge.template{background:rgba(245,158,11,0.12);color:var(--amber);border:1px solid rgba(245,158,11,0.2)}
+.reuse-badge.adapt{background:rgba(6,182,212,0.12);color:var(--cyan);border:1px solid rgba(6,182,212,0.2)}
+.reuse-badge.inspire{background:rgba(168,85,247,0.12);color:var(--purple);border:1px solid rgba(168,85,247,0.2)}
+
+/* Sections */
+.a-section{margin-top:1.25rem}
+.sec-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:.5rem;font-weight:600;display:flex;align-items:center;gap:.4rem}
+.sec-label.accent{color:var(--accent-1)}
+.a-text{color:var(--text-secondary);font-size:.88rem;line-height:1.85}
+.a-text strong{color:var(--text);font-weight:600}
+.a-text em{color:var(--accent-1);font-style:normal;font-weight:500}
+
+/* Reuse instruction */
+.reuse-instr{background:rgba(0,0,0,0.25);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:.6rem .9rem;margin:.6rem 0;font-size:.82rem;color:var(--text-secondary);line-height:1.6}
+.reuse-instr.tmpl{border-left-color:var(--amber)}
+.reuse-instr.adpt{border-left-color:var(--cyan)}
+.reuse-instr.insp{border-left-color:var(--purple)}
+.reuse-instr strong{color:var(--text)}
+
+/* Sub-toggle */
+.sub-toggle{display:flex;align-items:center;gap:.5rem;padding:.5rem 0;cursor:pointer;user-select:none;border:none;background:none;color:var(--text);font-size:.85rem;font-weight:500;width:100%;text-align:left;border-bottom:1px solid var(--border);transition:color .2s var(--transition)}
+.sub-toggle:hover{color:var(--accent-1)}
+.sub-toggle .sa{font-size:.65rem;color:var(--text-tertiary);transition:transform .3s var(--transition)}
+.sub-toggle.open .sa{transform:rotate(90deg)}
+.sub-content{display:none;padding:.75rem 0}
+.sub-toggle.open+.sub-content{display:block}
+
+/* Code blocks */
+.code-block{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:.85rem 1.1rem;overflow-x:auto;font-family:var(--font-mono);font-size:.76rem;line-height:1.6;color:var(--text-secondary);margin-top:.6rem;white-space:pre-wrap;word-break:break-word}
+.code-block .kw{color:#c678dd}.code-block .fn{color:#61afef}.code-block .str{color:#98c379}.code-block .num{color:#d19a66}.code-block .cmt{color:rgba(255,255,255,0.25);font-style:italic}.code-block .hl{background:rgba(245,158,11,0.1);display:inline;padding:.1em .2em;border-radius:3px}
+.code-block .good{color:var(--green)}.code-block .bad{color:var(--red)}
+.code-block .bi{color:var(--cyan)}
+
+.code-src{font-size:.7rem;color:var(--text-tertiary);font-family:var(--font-mono);margin-top:.4rem}
+.code-src .fr{color:var(--cyan)}
+
+/* Mapping table */
+.map-table{width:100%;border-collapse:collapse;font-size:.8rem;margin:.6rem 0}
+.map-table th{text-align:left;padding:.4rem .6rem;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);border-bottom:1px solid var(--border);font-weight:600}
+.map-table td{padding:.4rem .6rem;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--text-secondary);vertical-align:top}
+.map-table tr:last-child td{border-bottom:none}
+
+/* Skill tag */
+.sk{display:inline-flex;padding:.1rem .4rem;border-radius:4px;font-size:.68rem;font-family:var(--font-mono);background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-tertiary);margin:.1rem}
+
+.controls{display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:1rem}
+.ctrl-btn{padding:.35rem .75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:.75rem;cursor:pointer;transition:all .2s var(--transition);font-family:var(--font-sans)}
+.ctrl-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border-accent)}
+
+.footer{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-tertiary);font-size:.78rem}
+
+@media(max-width:640px){.container{padding:1rem}.header h1{font-size:1.5rem}.pattern-body{padding:0 1rem 1rem}.legend-grid{grid-template-columns:1fr}}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="header">
+  <h1>模式复用映射</h1>
+  <p class="subtitle">superpowers 中的通用模式 &rarr; 可复用于领域特定 Skill。四级复用程度，附带具体适配指南。</p>
+</header>
+
+<div class="legend">
+  <h3>复用等级</h3>
+  <div class="legend-grid">
+    <div class="legend-item"><span class="legend-dot copy"></span><strong style="color:var(--green)">直接复制</strong> &mdash; 结构性模式，逐字复制到任何纪律执行型 Skill 中</div>
+    <div class="legend-item"><span class="legend-dot template"></span><strong style="color:var(--amber)">填充模板</strong> &mdash; 结构固定，填入领域特定内容</div>
+    <div class="legend-item"><span class="legend-dot adapt"></span><strong style="color:var(--cyan)">改写适配</strong> &mdash; 核心理念可迁移，但措辞和触发条件需要按领域改写</div>
+    <div class="legend-item"><span class="legend-dot inspire"></span><strong style="color:var(--purple)">仅概念参考</strong> &mdash; 原则为设计提供参考，但实现必须从头构建</div>
+  </div>
+</div>
+
+<div class="search-wrap">
+  <span class="search-icon">&#x1F50D;</span>
+  <input type="text" class="search-input" id="searchInput" placeholder="按模式、Skill、复用等级或关键词筛选...">
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">等级：</span>
+  <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">全部</button>
+  <button class="filter-btn" data-filter="copy" onclick="setFilter('copy',this)">直接复制</button>
+  <button class="filter-btn" data-filter="template" onclick="setFilter('template',this)">填充模板</button>
+  <button class="filter-btn" data-filter="adapt" onclick="setFilter('adapt',this)">改写适配</button>
+  <button class="filter-btn" data-filter="inspire" onclick="setFilter('inspire',this)">仅概念参考</button>
+</div>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="toggleAll(true)">全部展开</button>
+  <button class="ctrl-btn" onclick="toggleAll(false)">全部折叠</button>
+</div>
+
+<main id="patterns"></main>
+
+<footer class="footer">提取自 superpowers/skills/ 源码 &mdash; Skill 设计参考第 4 部分</footer>
+
+</div>
+
+<script>
+const patterns = [
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. Iron Law — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"iron-law",num:"01",name:"Iron Law",nameCN:"铁律声明",reuse:"copy",
+  sourceSkills:["test-driven-development","systematic-debugging","verification-before-completion","writing-skills"],
+  summary:"任何纪律执行型 Skill 的绝对行为锚点。结构 100% 可复用，只需替换规则内容。",
+  instruction:"<strong>直接复制结构</strong>，替换三部分：(1) ALL CAPS 规则陈述 (2) 违反后果 (3) \"No exceptions\" 下的具体禁止项。禁止项必须从基线测试中收集，不是猜测。",
+  adaptation:null,
+  businessExample: {
+    title: "安全审查 Skill — Iron Law",
+    source: "改编自：test-driven-development Iron Law",
+    code: `<span class="hl">NO DEPLOYMENT WITHOUT SECURITY REVIEW FIRST</span>
+
+Deploy before security review? Roll back. Start review.
+
+<span class="hl">No exceptions:</span>
+- Don't deploy to staging as "pre-check"
+- Don't "review while deploying"
+- Don't skip for "hotfix urgency"
+- Roll back means full revert`
+  },
+  reuseCases: [
+    {domain:"API Design",example:"NO ENDPOINT WITHOUT INPUT VALIDATION FIRST"},
+    {domain:"Data Pipeline",example:"NO SCHEMA CHANGE WITHOUT MIGRATION PLAN FIRST"},
+    {domain:"DevOps",example:"NO INFRASTRUCTURE CHANGE WITHOUT ROLLBACK PLAN FIRST"},
+    {domain:"Documentation",example:"NO PUBLIC API CHANGE WITHOUT DOCS UPDATE FIRST"}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. Anti-Rationalization Table — Fill Template
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"anti-rat-table",num:"02",name:"Anti-Rationalization Table",nameCN:"反合理化表格",reuse:"template",
+  sourceSkills:["test-driven-development","systematic-debugging","verification-before-completion","using-superpowers"],
+  summary:"两列表格结构固定（| Excuse | Reality |），内容需要从业务场景的基线测试中收集。",
+  instruction:"<strong>复制表格结构</strong>，用以下流程填充内容：(1) 写一个业务压力场景 (2) 让代理在无 Skill 情况下执行 (3) 记录代理原话的合理化借口 (4) 为每个借口写具体、可验证的反驳。Reality 列必须是事实陈述，不是道德判断。",
+  adaptation:"| Excuse | Reality | 格式不变。但 Reality 列的内容必须引用业务中可验证的事实（\"上线后回滚过 3 次\"比\"这不好\"更有说服力）。如果业务有量化数据，优先使用数字。",
+  businessExample: {
+    title: "安全审查 — 合理化表格",
+    source: "模板来自：test-driven-development rationalizations",
+    code: `| <span class="bad">Excuse</span> | <span class="good">Reality</span> |
+|--------|---------|
+| "This endpoint is internal-only" | Internal endpoints get exposed. Audit history shows 4 internal APIs became public in Q1. |
+| "We'll review in the next sprint" | 73% of deferred reviews were never completed. Backlog review shows 12 outstanding. |
+| "The library handles it" | Library defaulted to insecure mode. Our config override was removed in v3.2. |
+| "Compliance already signed off" | Compliance checked policy, not implementation. Audit found 3 policy-compliant but vulnerable deployments. |`
+  },
+  reuseCases: [
+    {domain:"API Design",example:"| \"This field is optional\" | Optional fields become required in v2. Migration cost = 3x retrofit. |"},
+    {domain:"Data Pipeline",example:"| \"Source schema won't change\" | 6 breaking schema changes in 8 months from this source. |"},
+    {domain:"Code Review",example:"| \"Self-review is enough\" | Self-review catches 23% of issues. Peer review catches 67%. |"}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. Red Flags — Fill Template
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"red-flags",num:"03",name:"Red Flags",nameCN:"红旗检测",reuse:"template",
+  sourceSkills:["test-driven-development","systematic-debugging","verification-before-completion","using-superpowers","subagent-driven-development"],
+  summary:"项目符号列表 + 统一收尾语。列表内容需从业务场景收集，收尾语结构可复用。",
+  instruction:"<strong>复制结构</strong>：(1) \"## Red Flags - STOP and [action]\" 标题 (2) 捕获内部思维的列表项（用引号包裹代理想法）(3) 统一收尾语指向明确动作。列表项必须是代理的<strong>思维内容</strong>（\"I already tested this\"），不是外部行为（\"Don't skip testing\"）。",
+  adaptation:"收尾语的动作部分必须替换为业务特定动作。TDD 用 \"Delete code. Start over.\"，安全审查用 \"Revert deploy. Run review.\"。动作必须是具体的、可执行的、不可歧义的。",
+  businessExample: {
+    title: "数据库迁移 — 红旗检测",
+    source: "模板来自：systematic-debugging Red Flags",
+    code: `<span class="cmt">## Red Flags - STOP and Revert Migration</span>
+
+- "This migration is backwards-compatible"
+- "We can fix data issues after deploy"
+- "The test environment has the same data"
+- "Rollback is easy, we can always go back"
+- "The schema change is minor"
+- <span class="hl">"Just this one column, it doesn't affect queries"</span>
+- <span class="hl">"I already tested with production data snapshot"</span>
+
+<span class="hl">ALL of these mean: STOP. Revert migration. Run full impact analysis.</span>`
+  },
+  reuseCases: [
+    {domain:"API Versioning",example:"ALL of these mean: STOP. Revert API change. Write migration guide."},
+    {domain:"Infrastructure",example:"ALL of these mean: STOP. Roll back. Verify rollback plan works."},
+    {domain:"Release Process",example:"ALL of these mean: STOP. Revert release. Run full regression."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. HARD-GATE — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"hard-gate",num:"04",name:"HARD-GATE",nameCN:"硬门控",reuse:"copy",
+  sourceSkills:["brainstorming","using-superpowers"],
+  summary:"XML 标签包裹的绝对阻断。结构和说服逻辑 100% 可复用。",
+  instruction:"<strong>直接复制结构</strong>：(1) <HARD-GATE> 标签 (2) \"Do NOT [blocked actions] until [gate condition]\" (3) \"This applies to EVERY [scope] regardless of [common excuse]\"。关键是 scope 必须是全称（\"EVERY project\"），不留例外。",
+  adaptation:"无需改写。只需替换 [blocked actions]、[gate condition] 和 [scope]。XML 标签格式对 Claude 有特殊的注意力放大效果，保持原样。",
+  businessExample: {
+    title: "API 变更 Skill — HARD-GATE",
+    source: "结构来自：brainstorming HARD-GATE",
+    code: `<span class="tag">&lt;HARD-GATE&gt;</span>
+Do NOT modify any public API signature, add required fields,
+or change response format until you have written the migration
+guide AND confirmed backward compatibility with all known consumers.
+
+This applies to EVERY API change regardless of perceived
+breakage risk.
+<span class="tag">&lt;/HARD-GATE&gt;</span>`
+  },
+  reuseCases: [
+    {domain:"Data Pipeline",example:"Do NOT modify pipeline schema until impact analysis is complete AND downstream consumers are notified."},
+    {domain:"Release",example:"Do NOT cut a release until all P0 bugs are verified fixed AND staging smoke test passes."},
+    {domain:"Config",example:"Do NOT change default config values until migration path is documented AND backward compatibility is verified."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. Gate Function — Adapt
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"gate-function",num:"05",name:"Gate Function",nameCN:"门控函数",reuse:"adapt",
+  sourceSkills:["verification-before-completion","receiving-code-review"],
+  summary:"编号步骤的决策函数。5 步结构是 verification 特定的，需要根据业务场景调整步骤数量和内容。",
+  instruction:"<strong>保留核心原则</strong>（IDENTIFY → RUN → READ → VERIFY → ONLY THEN），但步骤必须针对业务场景重写。关键约束：(1) 每一步有明确的输入和输出 (2) 最后一步必须是 \"ONLY THEN: [claim]\" (3) \"Skip any step = [strong consequence]\"。",
+  adaptation:"Verification 的 5 步是针对\"声称完成\"设计的。如果业务场景是\"声称安全\"，步骤可能不同：(1) IDENTIFY threat model (2) RUN security scanner (3) READ findings (4) VERIFY no critical/high (5) ONLY THEN claim secure。步骤数量不一定是 5，但结构和原则不变。",
+  businessExample: {
+    title: "安全门控函数",
+    source: "改编自：verification-before-completion Gate Function",
+    code: `<span class="cmt">BEFORE claiming any endpoint is production-ready:</span>
+
+<span class="num">1. IDENTIFY:</span> What security checks apply to this endpoint?
+<span class="num">2. RUN:</span> Execute ALL applicable checks (OWASP scan, auth test, input validation)
+<span class="num">3. READ:</span> Full scan report, check severity ratings, count findings
+<span class="num">4. VERIFY:</span> No Critical or High findings remain?
+     - If NO: Document each finding with remediation plan
+     - If YES: Proceed
+<span class="num">5. ONLY THEN:</span> Mark endpoint as production-ready
+
+<span class="hl">Skip any step = deploying known vulnerabilities</span>`
+  },
+  reuseCases: [
+    {domain:"API Compatibility",example:"1. IDENTIFY consumers → 2. RUN contract tests → 3. READ failures → 4. VERIFY zero breaks → 5. ONLY THEN ship"},
+    {domain:"Data Quality",example:"1. IDENTIFY quality rules → 2. RUN validation → 3. READ anomalies → 4. VERIFY within threshold → 5. ONLY THEN publish"},
+    {domain:"Performance",example:"1. IDENTIFY SLO targets → 2. RUN load test → 3. READ p99 latencies → 4. VERIFY within SLO → 5. ONLY THEN scale"}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. When/Then Trigger — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"when-then",num:"06",name:"When/Then Trigger",nameCN:"条件触发器",reuse:"copy",
+  sourceSkills:["using-superpowers","receiving-code-review","subagent-driven-development","systematic-debugging"],
+  summary:"IF/WHEN [condition] : [mandatory action] 格式。结构和心理学原理 100% 可复用，条件内容需替换。",
+  instruction:"<strong>直接复制格式</strong>。关键是：(1) 条件必须是<strong>可机械判定</strong>的（不是 \"when quality is important\"）(2) 动作必须是<strong>不可协商</strong>的单一动作 (3) 加 WHY 行解释原因（降低合理化空间）。",
+  adaptation:"格式不变。但条件必须用业务中可观察的事实：文件名、错误消息、git 状态、命令输出。不能用主观判断（\"when it's critical\"）。",
+  businessExample: {
+    title: "数据库变更触发器",
+    source: "格式来自：systematic-debugging triggers",
+    code: `<span class="kw">IF</span> modifying a table with >100k rows:
+  <span class="hl">STOP</span> - check for existing migration pattern
+  <span class="kw">WHY:</span> Large table migrations have caused 3 incidents.
+  Use pt-online-schema-change or equivalent.
+
+<span class="kw">IF</span> adding a NOT NULL column to existing table:
+  <span class="hl">STOP</span> - verify default value strategy
+  <span class="kw">WHY:</span> NOT NULL without defaults blocks writes during deploy.
+
+<span class="kw">IF</span> removing a column:
+  <span class="hl">STOP</span> - grep codebase for all references
+  <span class="kw">WHY:</span> Column removal broke 2 services that queried it indirectly.`
+  },
+  reuseCases: [
+    {domain:"API",example:"IF adding required request field → STOP → check all known consumers → WHY: breaking change requires migration"},
+    {domain:"Infra",example:"IF changing instance type → STOP → verify cost impact → WHY: 3 unexpected $2k/month overruns"},
+    {domain:"Auth",example:"IF modifying permission check → STOP → verify no privilege escalation path → WHY: auth bugs are P0 by default"}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. Commitment Announce — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"commitment",num:"07",name:"Commitment Announce",nameCN:"承诺宣布",reuse:"copy",
+  sourceSkills:["using-superpowers","writing-plans","executing-plans","finishing-a-development-branch","using-git-worktrees"],
+  summary:"\"I'm using [Skill] to [purpose]\" 声明。格式和心理学原理完全通用。",
+  instruction:"<strong>直接复制</strong>。在每个流程型 Skill 的入口添加：<code>**Announce at start:** \"I'm using the [skill-name] skill to [purpose].\"</code>。Purpose 必须是一个动词短语，描述这个 Skill 要达成什么。",
+  adaptation:"无需改写。格式是通用的。唯一需要注意的是 purpose 描述要准确反映 Skill 的目标，不能太宽泛（\"to help\"）也不能太窄（\"to run npm test\"）。",
+  businessExample: {
+    title: "业务 Skill 声明示例",
+    source: "格式来自：writing-plans, using-git-worktrees",
+    code: `<span class="cmt">// API Design Skill:</span>
+<span class="hl">Announce at start: "I'm using the api-design skill to
+design the endpoint contract before implementation."</span>
+
+<span class="cmt">// Security Review Skill:</span>
+<span class="hl">Announce at start: "I'm using the security-review skill
+to audit this change before deployment."</span>
+
+<span class="cmt">// Migration Planning Skill:</span>
+<span class="hl">Announce at start: "I'm using the migration-planning
+skill to create a safe migration strategy."</span>`
+  },
+  reuseCases: [
+    {domain:"Any process skill",example:"Copy the format. Replace skill-name and purpose."},
+    {domain:"Review workflows",example:"Announce before each review phase to maintain accountability."},
+    {domain:"Release process",example:"Announce at each release gate to create visible checkpoints."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. Zero-Context Handoff — Adapt
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"zero-ctx",num:"08",name:"Zero-Context Handoff",nameCN:"零上下文交接",reuse:"adapt",
+  sourceSkills:["subagent-driven-development","implementer-prompt","spec-reviewer-prompt"],
+  summary:"将所有必要信息嵌入 prompt，不依赖子代理自行读取。原则通用，但需要根据业务上下文调整嵌入的内容。",
+  instruction:"<strong>保留原则</strong>（provide full text, don't make subagent read files），但需要决定嵌入什么内容。对业务 Skill：(1) 嵌入完整的业务规则文档（不是链接）(2) 嵌入相关的 schema/API 定义 (3) 嵌入场景描述说明子代理的工作在整个流程中的位置。",
+  adaptation:"Superpowers 的子代理是通用软件开发者。业务 Skill 的子代理可能需要领域知识（金融规则、医疗合规、法律约束）。这些领域知识必须作为 Context 部分嵌入 prompt，不能假设子代理\"应该知道\"。",
+  businessExample: {
+    title: "支付处理子代理 — 零上下文交接",
+    source: "改编自：implementer-prompt.md",
+    code: `<span class="cmt">## Task Description</span>
+
+<span class="hl">[FULL TEXT of task from plan - paste it here,
+don't make subagent read file]</span>
+
+<span class="cmt">## Business Context</span>
+
+<span class="bi">This implements the refund flow for payment processor X.</span>
+<span class="bi">Key rules:</span>
+<span class="bi">- Refunds > $1000 require manager approval (policy REF-004)</span>
+<span class="bi">- Partial refunds are not supported (processor limitation)</span>
+<span class="bi">- Refund window: 30 days from purchase (regulatory requirement)</span>
+<span class="bi">- Currency conversion uses daily rate from /rates endpoint</span>
+
+<span class="cmt">## Integration Context</span>
+
+<span class="bi">This task is part of the refund feature (Spec: docs/specs/refund-design.md)</span>
+<span class="bi">Depends on: Task 3 (refund service) which is already complete</span>
+<span class="bi">Consumed by: Task 5 (refund API endpoint) which needs this logic</span>`
+  },
+  reuseCases: [
+    {domain:"Compliance",example:"Embed regulatory requirements, policy IDs, and jurisdiction-specific rules as Context."},
+    {domain:"Data Engineering",example:"Embed schema definitions, data quality thresholds, and SLA targets as Context."},
+    {domain:"Legal/Tech",example:"Embed contract terms, data retention policies, and privacy requirements as Context."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 9. Clean Baseline — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"clean-baseline",num:"09",name:"Clean Baseline",nameCN:"干净基线",reuse:"copy",
+  sourceSkills:["using-git-worktrees","writing-skills","test-driven-development"],
+  summary:"在修改前建立\"一切正常\"的证据基线。结构和逻辑完全通用。",
+  instruction:"<strong>直接复制</strong>：(1) 运行完整测试/验证套件 (2) 如果失败 → 报告并获取许可 (3) 如果通过 → 报告具体数字（N tests, 0 failures）。唯一需要替换的是具体的验证命令。",
+  adaptation:"验证命令需要根据业务替换（\"run SOC2 scanner\" 替代 \"npm test\"），但结构不变：run → check output → report numbers → fail = stop & ask。",
+  businessExample: {
+    title: "基础设施变更 — 干净基线",
+    source: "结构来自：using-git-worktrees baseline verification",
+    code: `<span class="cmt">### Verify Clean Baseline</span>
+
+Run health checks before modifying infrastructure:
+
+<span class="fn">./health-check.sh --all</span>
+<span class="fn">./smoke-tests.sh --environment=staging</span>
+
+<span class="hl">If any check fails:** Report failures with details,
+ask whether to proceed or investigate.
+
+**If all checks pass:** Report ready.
+
+Expected output format:
+Infrastructure baseline: <span class="num">&lt;N&gt;</span> checks, <span class="num">0</span> failures
+Smoke tests: <span class="num">&lt;M&gt;</span> passed, <span class="num">0</span> failed
+Ready to modify: <span class="str">&lt;component-name&gt;</span>`
+  },
+  reuseCases: [
+    {domain:"Database",example:"Run schema validation + data integrity check before DDL changes."},
+    {domain:"API",example:"Run contract tests against all consumers before API changes."},
+    {domain:"Config",example:"Run config validation + dry-run before applying config changes."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 10. Sequential Gating — Adapt
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"seq-gating",num:"10",name:"Sequential Gating",nameCN:"顺序门控",reuse:"adapt",
+  sourceSkills:["systematic-debugging","subagent-driven-development","brainstorming"],
+  summary:"多阶段强制顺序。原则通用（每阶段有完成标准，不能跳过），但阶段划分必须根据业务流程重新设计。",
+  instruction:"<strong>保留原则</strong>：(1) 每阶段有明确的完成标准 (2) \"MUST complete each phase before proceeding\" (3) 不能并行、跳过、或提前进入下一阶段。但阶段数量、名称和内容必须根据业务流程重新设计。",
+  adaptation:"调试的 4 阶段（Root Cause → Pattern → Hypothesis → Implementation）不能直接用于其他场景。需要分析业务流程，找到自然的阶段边界。关键测试：每个阶段的输出是否是下一阶段的必要输入？如果是，顺序门控是合适的。",
+  businessExample: {
+    title: "发布流程 — 顺序门控",
+    source: "原则来自：systematic-debugging four phases",
+    code: `<span class="cmt">## The Release Pipeline</span>
+
+You <span class="hl">MUST</span> complete each phase before proceeding.
+
+<span class="num">1. Feature Freeze</span>
+  All planned features merged. No new PRs accepted.
+  Exit: Release branch created, changelog generated.
+
+<span class="num">2. Quality Gate</span>
+  All tests pass. No Critical/High bugs open.
+  Exit: Test report attached, bug count verified.
+
+<span class="num">3. Security Review</span>
+  Dependency audit clean. No new vulnerabilities.
+  Exit: Security sign-off documented.
+
+<span class="num">4. Staging Validation</span>
+  Deploy to staging. Smoke tests pass. Performance within SLO.
+  Exit: Staging report with metrics.
+
+<span class="num">5. Production Deploy</span>
+  Deploy with rollback ready. Monitor for 30 minutes.
+  Exit: Health check confirms stable.
+
+<span class="hl">Cannot skip phases. Cannot parallelize.
+Cannot proceed without exit criteria met.</span>`
+  },
+  reuseCases: [
+    {domain:"Data Migration",example:"Schema change → Data validation → Consumer notification → Cutover → Verification"},
+    {domain:"Compliance Audit",example:"Scope definition → Evidence collection → Gap analysis → Remediation → Sign-off"},
+    {domain:"Onboarding",example:"Environment setup → Access provisioning → Training → Assessment → Certification"}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 11. Implementation Intentions — Adapt
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"impl-intent",num:"11",name:"Implementation Intentions",nameCN:"执行意图",reuse:"inspire",
+  sourceSkills:["writing-skills","using-superpowers","persuasion-principles"],
+  summary:"\"When X, do Y\" 自动执行计划。Gollwitzer (1999) 的心理学原理是通用的，但具体的 if-then 规则必须针对业务场景重新设计。",
+  instruction:"<strong>保留心理学原理</strong>（clear triggers + required actions = automatic execution），但具体的触发条件和动作必须从业务流程中提取。关键：(1) 触发条件必须出现在代理的自然工作流中 (2) 动作必须足够小以至于不需要\"决定\" (3) if-then 对必须覆盖代理最容易跳过的关键步骤。",
+  adaptation:"这个模式不能简单填充模板 — 它需要深入理解业务流程中代理的行为模式。方法是：(1) 观察代理在无 Skill 时的行为 (2) 找到\"应该做但没做\"的关键时刻 (3) 为每个时刻设计 if-then 规则。这是最需要领域知识的模式。",
+  businessExample: {
+    title: "API 版本管理 — 执行意图",
+    source: "原则来自：persuasion-principles.md Implementation Intentions",
+    code: `<span class="cmt">// These replace vague "remember to version APIs" with
+// automatic triggers:</span>
+
+<span class="kw">WHEN</span> modifying a response field type:
+  → <span class="hl">Check semver impact</span> (type change = major version)
+
+<span class="kw">WHEN</span> adding a new required request field:
+  → <span class="hl">Write consumer migration guide</span> before implementation
+
+<span class="kw">WHEN</span> removing an endpoint:
+  → <span class="hl">Create deprecation notice</span> with timeline
+  → <span class="hl">Verify no internal callers</span> via codebase grep
+
+<span class="kw">WHEN</span> changing error response format:
+  → <span class="hl">Update error documentation</span> and SDK examples
+
+<span class="cmt">// Key: each trigger is an observable event in the
+// development workflow, not a subjective judgment.</span>`
+  },
+  reuseCases: [
+    {domain:"Database",example:"WHEN adding index → check query plan impact. WHEN dropping column → verify no views depend on it."},
+    {domain:"Security",example:"WHEN handling user input → run OWASP validation checklist. WHEN storing PII → verify encryption at rest."},
+    {domain:"Compliance",example:"WHEN processing personal data → check consent record. WHEN cross-border transfer → verify data residency."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 12. Spirit-Over-Letter Clause — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"spirit-letter",num:"12",name:"Spirit-Over-Letter Clause",nameCN:"精神即字面原则",reuse:"copy",
+  sourceSkills:["test-driven-development","systematic-debugging","verification-before-completion"],
+  summary:"一次性封堵整个\"我遵循精神而非字面\"合理化类别的单行声明。",
+  instruction:"<strong>直接复制</strong>，放在 Iron Law 之后。这个条款的价值在于它不需要枚举所有可能的\"特殊情况\" — 一个原则就覆盖了所有变种。适用于所有纪律执行型 Skill。",
+  adaptation:null,
+  businessExample: {
+    title: "合规 Skill — 精神即字面原则",
+    source: "直接复制自：test-driven-development",
+    code: `<span class="hl">Violating the letter of this process is violating
+the spirit of this process.</span>`
+  },
+  reuseCases: [
+    {domain:"Any discipline skill",example:"Copy verbatim. Place after the Iron Law."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 13. Two-Stage Review — Adapt
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"two-stage-review",num:"13",name:"Two-Stage Review",nameCN:"两阶段审查",reuse:"adapt",
+  sourceSkills:["subagent-driven-development"],
+  summary:"先验证\"做了正确的事\"（spec compliance），再验证\"正确地做事\"（code quality）。顺序原则通用，审查标准需替换。",
+  instruction:"<strong>保留顺序原则</strong>（spec first, quality second），但两个阶段的审查标准必须根据业务替换。Spec compliance 在业务中可能变成：功能合规、法规合规、需求覆盖。Code quality 可能变成：性能、安全、可维护性。",
+  adaptation:"关键约束不变：<strong>绝对不能反转顺序</strong>。在业务中，先确认\"做的事情是对的\"再确认\"做的方式是对的\"。如果方向错了，质量再高也是浪费。具体来说：第一个审查者的 prompt 必须包含 \"Do Not Trust the Report\" — 这是对抗乐观偏差的通用工具。",
+  businessExample: {
+    title: "数据管道 — 两阶段审查",
+    source: "顺序原则来自：subagent-driven-development",
+    code: `<span class="cmt">Stage 1: <span class="hl">Requirement Compliance Review</span></span>
+  - Does output match specification?
+  - Are all required fields present?
+  - Are data types correct?
+  - Are edge cases handled per spec?
+  <span class="cmt">// "Do Not Trust the Report" applies here too</span>
+
+<span class="cmt">Stage 2: <span class="hl">Pipeline Quality Review</span> (only after Stage 1 passes)</span>
+  - Is error handling robust?
+  - Is performance within SLA?
+  - Is retry logic correct?
+  - Is monitoring/logging adequate?
+
+<span class="hl">NEVER run Stage 2 before Stage 1 passes.</span>
+<span class="hl">If Stage 1 finds issues → fix → re-review Stage 1 → then Stage 2.</span>`
+  },
+  reuseCases: [
+    {domain:"Compliance",example:"Stage 1: Policy compliance. Stage 2: Implementation quality. Never reverse."},
+    {domain:"UX",example:"Stage 1: Design spec compliance. Stage 2: Code quality and accessibility. Never reverse."},
+    {domain:"API",example:"Stage 1: Contract compliance. Stage 2: Performance and error handling. Never reverse."}
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 14. CSO Description — Direct Copy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id:"cso-desc",num:"14",name:"CSO Description Pattern",nameCN:"搜索优化描述模式",reuse:"copy",
+  sourceSkills:["writing-skills"],
+  summary:"\"Use when [symptoms], before [action]\" 的 description 格式。这是让 Skill 被发现的机制，结构完全通用。",
+  instruction:"<strong>复制格式</strong>：(1) 以 \"Use when\" 开头 (2) 描述可观察的症状/情况 (3) 加 \"before [action]\" 限定触发时机 (4) 绝不描述工作流程。包含错误消息、同义词、工具名作为搜索关键词。",
+  adaptation:null,
+  businessExample: {
+    title: "业务 Skill 描述示例",
+    source: "格式来自：writing-skills CSO guidelines",
+    code: `<span class="cmt">// API Versioning Skill:</span>
+<span class="good">description: Use when modifying public API signatures,
+  adding required fields, or changing response formats,
+  before merging changes</span>
+
+<span class="cmt">// Data Migration Skill:</span>
+<span class="good">description: Use when changing database schema, adding
+  NOT NULL columns, or removing tables, before running
+  migration</span>
+
+<span class="cmt">// Compliance Check Skill:</span>
+<span class="good">description: Use when handling personal data,
+  cross-border data transfer, or processing consent,
+  before deploying to production</span>`
+  },
+  reuseCases: [
+    {domain:"Any skill",example:"Use the \"Use when [symptoms], before [action]\" format. Never summarize workflow in description."}
+  ]
+}
+];
+
+// ============================================================
+// RENDER
+// ============================================================
+
+const container = document.getElementById('patterns');
+const searchInput = document.getElementById('searchInput');
+let currentFilter = 'all';
+
+const reuseLabels = {copy:'直接复制',template:'填充模板',adapt:'改写适配',inspire:'仅概念参考'};
+const reuseClasses = {copy:'copy',template:'template',adapt:'adapt',inspire:'inspire'};
+
+patterns.forEach(p => {
+  const card = document.createElement('div');
+  card.className = 'pattern-card open';
+  card.id = p.id;
+  card.dataset.reuse = p.reuse;
+  card.dataset.search = `${p.name} ${p.nameCN} ${p.reuse} ${p.sourceSkills.join(' ')} ${p.summary} ${JSON.stringify(p.reuseCases)}`.toLowerCase();
+
+  const instrClass = p.reuse === 'copy' ? '' : p.reuse === 'template' ? 'tmpl' : p.reuse === 'adapt' ? 'adpt' : 'insp';
+
+  card.innerHTML = `
+    <div class="pattern-header" onclick="toggleCard(this)">
+      <span class="p-num">${p.num}</span>
+      <span class="p-name">${p.name} <span style="color:var(--text-tertiary);font-size:.8rem">${p.nameCN}</span></span>
+      <span class="reuse-badge ${reuseClasses[p.reuse]}">${reuseLabels[p.reuse]}</span>
+      <span class="p-arrow">&#9660;</span>
+    </div>
+    <div class="pattern-body">
+      <div class="a-section">
+        <div class="a-text">${p.summary}</div>
+      </div>
+
+      <div class="a-section">
+        <div class="sec-label accent">来源 Skill</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.3rem">
+          ${p.sourceSkills.map(s => `<span class="sk">${s}</span>`).join('')}
+        </div>
+      </div>
+
+      <div class="a-section">
+        <div class="sec-label accent">如何复用</div>
+        <div class="reuse-instr ${instrClass}">${p.instruction}</div>
+        ${p.adaptation ? `<div class="a-text" style="margin-top:.5rem"><strong>适配说明：</strong> ${p.adaptation}</div>` : ''}
+      </div>
+
+      <div class="a-section">
+        <div class="sec-label">业务示例</div>
+        <button class="sub-toggle" onclick="toggleSub(this)">
+          <span class="sa">&#9654;</span>
+          ${p.businessExample.title}
+        </button>
+        <div class="sub-content">
+          <div class="code-block">${p.businessExample.code}</div>
+          <div class="code-src"><span class="fr">${p.businessExample.source}</span></div>
+        </div>
+      </div>
+
+      <div class="a-section">
+        <div class="sec-label">更多复用场景 (${p.reuseCases.length})</div>
+        <table class="map-table">
+          <tr><th>领域</th><th>应用示例</th></tr>
+          ${p.reuseCases.map(c => `<tr><td style="color:var(--accent-1);font-weight:500;white-space:nowrap">${c.domain}</td><td>${c.example}</td></tr>`).join('')}
+        </table>
+      </div>
+    </div>
+  `;
+  container.appendChild(card);
+});
+
+function toggleCard(h) { h.parentElement.classList.toggle('open'); }
+function toggleSub(b) { b.classList.toggle('open'); }
+function toggleAll(open) { document.querySelectorAll('.pattern-card').forEach(c => open ? c.classList.add('open') : c.classList.remove('open')); }
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = 'filter-btn';
+  });
+  btn.classList.add('active');
+  if (f !== 'all') btn.classList.add('active-' + f);
+
+  document.querySelectorAll('.pattern-card').forEach(card => {
+    if (f === 'all' || card.dataset.reuse === f) {
+      card.classList.remove('hidden');
+    } else {
+      card.classList.add('hidden');
+    }
+  });
+}
+
+searchInput.addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.pattern-card').forEach(card => {
+    if (!q || card.dataset.search.includes(q)) {
+      if (currentFilter === 'all' || card.dataset.reuse === currentFilter) {
+        card.classList.remove('hidden');
+      }
+    } else {
+      card.classList.add('hidden');
+    }
+  });
+});
+</script>
+</body>
+</html>

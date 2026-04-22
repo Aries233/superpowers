@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic SDLC — 技能调用链</title>
+<style>
+:root {
+  --bg:#08080c;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.06);--border-accent:rgba(255,255,255,0.12);
+  --text:#ededef;--text-secondary:rgba(255,255,255,0.55);--text-tertiary:rgba(255,255,255,0.3);
+  --accent-1:#f59e0b;--accent-2:#ef4444;--accent-3:#34d399;
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#06b6d4;--purple:#a855f7;
+  --font-mono:'SF Mono','Fira Code','JetBrains Mono',monospace;
+  --font-sans:-apple-system,'Inter',system-ui,sans-serif;
+  --radius:12px;--transition:cubic-bezier(0.4,0,0.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(245,158,11,0.05) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(52,211,153,0.04) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 60%);pointer-events:none;z-index:0}
+.container{max-width:1000px;margin:0 auto;padding:2rem 1.5rem 4rem;position:relative;z-index:1}
+
+.header{text-align:center;padding:3rem 0 2.5rem;border-bottom:1px solid var(--border);margin-bottom:2.5rem}
+.header h1{font-size:2rem;font-weight:700;background:linear-gradient(135deg,var(--accent-1),var(--accent-3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em;margin-bottom:.75rem}
+.header .subtitle{color:var(--text-secondary);font-size:.95rem;max-width:640px;margin:0 auto}
+
+/* Legend */
+.legend{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.5rem;margin-bottom:2rem;backdrop-filter:blur(12px);display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:center}
+.legend-item{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text-secondary)}
+.legend-line{width:24px;height:3px;border-radius:2px}
+.legend-line.primary{background:var(--accent-1)}
+.legend-line.required{background:var(--red)}
+.legend-line.uses{background:var(--cyan);opacity:.5}
+.legend-line.optional{background:var(--text-tertiary);opacity:.4}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* Main flow diagram */
+.flow-container{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem 1.5rem;margin-bottom:2rem;backdrop-filter:blur(12px);overflow-x:auto}
+.flow-svg{width:100%;min-width:800px;height:auto;display:block}
+
+/* Node detail panel */
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1.5rem;backdrop-filter:blur(12px);overflow:hidden;transition:border-color .3s var(--transition)}
+.detail-panel:hover{border-color:var(--border-accent)}
+.detail-header{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;cursor:pointer;user-select:none}
+.detail-header:hover{background:var(--surface-hover)}
+.detail-name{font-size:.95rem;font-weight:600;flex:1}
+.detail-arrow{font-size:.75rem;color:var(--text-tertiary);transition:transform .3s var(--transition)}
+.detail-panel.open .detail-arrow{transform:rotate(180deg)}
+.detail-body{display:none;padding:0 1.25rem 1.25rem;border-top:1px solid var(--border)}
+.detail-panel.open .detail-body{display:block}
+
+.badge{display:inline-flex;padding:.15rem .5rem;border-radius:5px;font-size:.65rem;font-weight:600;border:1px solid;flex-shrink:0}
+.badge.phase{background:rgba(245,158,11,0.1);color:var(--amber);border-color:rgba(245,158,11,0.2)}
+.badge.infra{background:rgba(6,182,212,0.1);color:var(--cyan);border-color:rgba(6,182,212,0.2)}
+.badge.discipline{background:rgba(239,68,68,0.1);color:var(--red);border-color:rgba(239,68,68,0.2)}
+.badge.quality{background:rgba(52,211,153,0.1);color:var(--green);border-color:rgba(52,211,153,0.2)}
+.badge.meta{background:rgba(168,85,247,0.1);color:var(--purple);border-color:rgba(168,85,247,0.2)}
+
+/* Detail content */
+.d-section{margin-top:1rem}
+.d-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);margin-bottom:.35rem;font-weight:600}
+.d-text{font-size:.83rem;color:var(--text-secondary);line-height:1.7}
+.d-text strong{color:var(--text);font-weight:600}
+.d-text code{font-family:var(--font-mono);font-size:.76rem;background:rgba(255,255,255,0.06);padding:.1em .3em;border-radius:3px;color:var(--cyan)}
+.conn-list{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
+.conn-tag{display:inline-flex;padding:.12rem .4rem;border-radius:4px;font-size:.68rem;font-family:var(--font-mono);border:1px solid var(--border);color:var(--text-tertiary)}
+.conn-tag.calls{border-color:rgba(239,68,68,0.2);color:var(--red)}
+.conn-tag.called-by{border-color:rgba(6,182,212,0.2);color:var(--cyan)}
+.conn-tag.injects{border-color:rgba(168,85,247,0.2);color:var(--purple)}
+.conn-tag.parallel{border-color:rgba(245,158,11,0.2);color:var(--amber)}
+
+/* Code block */
+.code-block{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;font-family:var(--font-mono);font-size:.74rem;line-height:1.55;color:var(--text-secondary);margin-top:.5rem;white-space:pre-wrap;word-break:break-word}
+.code-block .kw{color:#c678dd}.code-block .fn{color:#61afef}.code-block .str{color:#98c379}.code-block .hl{background:rgba(245,158,11,0.1);display:inline;padding:.1em .2em;border-radius:3px}
+
+/* Sub-toggle */
+.sub-toggle{display:flex;align-items:center;gap:.5rem;padding:.45rem 0;cursor:pointer;user-select:none;border:none;background:none;color:var(--text);font-size:.82rem;font-weight:500;width:100%;text-align:left;border-bottom:1px solid var(--border)}
+.sub-toggle:hover{color:var(--accent-1)}
+.sub-toggle .sa{font-size:.6rem;color:var(--text-tertiary);transition:transform .3s var(--transition)}
+.sub-toggle.open .sa{transform:rotate(90deg)}
+.sub-content{display:none;padding:.65rem 0}
+.sub-toggle.open+.sub-content{display:block}
+
+.controls{display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:1rem}
+.ctrl-btn{padding:.35rem .75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:.75rem;cursor:pointer;transition:all .2s var(--transition);font-family:var(--font-sans)}
+.ctrl-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border-accent)}
+
+.search-wrap{position:relative;margin-bottom:1.5rem}
+.search-input{width:100%;padding:.65rem 1rem .65rem 2.25rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.85rem;font-family:var(--font-sans);outline:none;transition:border-color .2s var(--transition);backdrop-filter:blur(8px)}
+.search-input:focus{border-color:var(--accent-1)}
+.search-icon{position:absolute;left:.8rem;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-size:.8rem;pointer-events:none}
+
+.footer{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border);text-align:center;color:var(--text-tertiary);font-size:.78rem}
+
+@media(max-width:640px){
+  .container{padding:1rem}
+  .header h1{font-size:1.5rem}
+  .detail-body{padding:0 1rem 1rem}
+  .legend{flex-direction:column;align-items:flex-start}
+}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="header">
+  <h1>Agentic SDLC &mdash; 技能调用链</h1>
+  <p class="subtitle">从会话钩子到分支完成的完整技能调用图。14 个节点，22 条边，一条确定性流水线。</p>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-line primary"></span> 主流程</div>
+  <div class="legend-item"><span class="legend-line required"></span> 必需子技能</div>
+  <div class="legend-item"><span class="legend-line uses"></span> 子代理使用</div>
+  <div class="legend-item"><span class="legend-line optional"></span> 条件 / 可选</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span> 阶段</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--cyan)"></span> 基础设施</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span> 纪律</div>
+  <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span> 质量</div>
+</div>
+
+<!-- ─── SVG Flow Diagram ─── -->
+<div class="flow-container">
+<svg class="flow-svg" viewBox="0 0 960 720" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="var(--accent-1)"/>
+    <stop offset="100%" stop-color="var(--accent-3)"/>
+  </linearGradient>
+  <filter id="glow">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <marker id="arrowP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <path d="M0,0 L8,3 L0,6" fill="var(--accent-1)" opacity="0.8"/>
+  </marker>
+  <marker id="arrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <path d="M0,0 L8,3 L0,6" fill="var(--red)" opacity="0.7"/>
+  </marker>
+  <marker id="arrowC" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <path d="M0,0 L8,3 L0,6" fill="var(--cyan)" opacity="0.5"/>
+  </marker>
+  <marker id="arrowG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <path d="M0,0 L8,3 L0,6" fill="var(--green)" opacity="0.7"/>
+  </marker>
+</defs>
+
+<!-- ── Phase labels ── -->
+<text x="20" y="52" fill="var(--text-tertiary)" font-size="11" font-family="var(--font-mono)" letter-spacing="0.08em">会话初始化</text>
+<text x="20" y="162" fill="var(--text-tertiary)" font-size="11" font-family="var(--font-mono)" letter-spacing="0.08em">设计</text>
+<text x="20" y="302" fill="var(--text-tertiary)" font-size="11" font-family="var(--font-mono)" letter-spacing="0.08em">计划</text>
+<text x="20" y="462" fill="var(--text-tertiary)" font-size="11" font-family="var(--font-mono)" letter-spacing="0.08em">执行</text>
+<text x="20" y="642" fill="var(--text-tertiary)" font-size="11" font-family="var(--font-mono)" letter-spacing="0.08em">完成</text>
+
+<!-- Phase separator lines -->
+<line x1="15" y1="100" x2="945" y2="100" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+<line x1="15" y1="240" x2="945" y2="240" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+<line x1="15" y1="380" x2="945" y2="380" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+<line x1="15" y1="560" x2="945" y2="560" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+
+<!-- ── Nodes ── -->
+
+<!-- 1. session-start hook -->
+<rect x="140" y="30" width="180" height="50" rx="8" fill="rgba(168,85,247,0.08)" stroke="var(--purple)" stroke-width="1.5"/>
+<text x="230" y="52" text-anchor="middle" fill="var(--purple)" font-size="13" font-weight="600">session-start hook</text>
+<text x="230" y="68" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">hooks/session-start</text>
+
+<!-- 2. using-superpowers -->
+<rect x="400" y="30" width="190" height="50" rx="8" fill="rgba(168,85,247,0.08)" stroke="var(--purple)" stroke-width="1.5"/>
+<text x="495" y="52" text-anchor="middle" fill="var(--purple)" font-size="13" font-weight="600">using-superpowers</text>
+<text x="495" y="68" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">引导程序 / 路由器</text>
+
+<!-- 3. using-git-worktrees -->
+<rect x="680" y="30" width="190" height="50" rx="8" fill="rgba(6,182,212,0.08)" stroke="var(--cyan)" stroke-width="1.5"/>
+<text x="775" y="52" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="600">using-git-worktrees</text>
+<text x="775" y="68" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">基础设施</text>
+
+<!-- 4. brainstorming -->
+<rect x="140" y="120" width="180" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="var(--amber)" stroke-width="1.5"/>
+<text x="230" y="142" text-anchor="middle" fill="var(--amber)" font-size="13" font-weight="600">brainstorming</text>
+<text x="230" y="158" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">流程门控</text>
+
+<!-- 5. writing-plans -->
+<rect x="400" y="120" width="190" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="var(--amber)" stroke-width="1.5"/>
+<text x="495" y="142" text-anchor="middle" fill="var(--amber)" font-size="13" font-weight="600">writing-plans</text>
+<text x="495" y="158" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">计划创建</text>
+
+<!-- 6. subagent-driven-dev -->
+<rect x="140" y="260" width="200" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="var(--amber)" stroke-width="2"/>
+<text x="240" y="282" text-anchor="middle" fill="var(--amber)" font-size="13" font-weight="600">subagent-driven-dev</text>
+<text x="240" y="298" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">执行引擎（推荐）</text>
+
+<!-- 7. executing-plans -->
+<rect x="400" y="260" width="190" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="var(--amber)" stroke-width="1.5"/>
+<text x="495" y="282" text-anchor="middle" fill="var(--amber)" font-size="13" font-weight="600">executing-plans</text>
+<text x="495" y="298" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">内联执行</text>
+
+<!-- 8. TDD -->
+<rect x="140" y="390" width="180" height="50" rx="8" fill="rgba(239,68,68,0.08)" stroke="var(--red)" stroke-width="1.5"/>
+<text x="230" y="412" text-anchor="middle" fill="var(--red)" font-size="13" font-weight="600">test-driven-dev</text>
+<text x="230" y="428" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">纪律</text>
+
+<!-- 9. systematic-debugging -->
+<rect x="370" y="390" width="190" height="50" rx="8" fill="rgba(239,68,68,0.08)" stroke="var(--red)" stroke-width="1.5"/>
+<text x="465" y="412" text-anchor="middle" fill="var(--red)" font-size="13" font-weight="600">systematic-debugging</text>
+<text x="465" y="428" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">纪律</text>
+
+<!-- 10. verification-before-completion -->
+<rect x="610" y="390" width="210" height="50" rx="8" fill="rgba(52,211,153,0.08)" stroke="var(--green)" stroke-width="1.5"/>
+<text x="715" y="412" text-anchor="middle" fill="var(--green)" font-size="13" font-weight="600">verification-before-completion</text>
+<text x="715" y="428" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">质量门控</text>
+
+<!-- 11. requesting-code-review -->
+<rect x="855" y="390" width="80" height="50" rx="8" fill="rgba(52,211,153,0.08)" stroke="var(--green)" stroke-width="1"/>
+<text x="895" y="412" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">code-review</text>
+<text x="895" y="428" text-anchor="middle" fill="var(--text-tertiary)" font-size="9">请求审查</text>
+
+<!-- 12. receiving-code-review -->
+<rect x="140" y="470" width="190" height="50" rx="8" fill="rgba(52,211,153,0.08)" stroke="var(--green)" stroke-width="1"/>
+<text x="235" y="492" text-anchor="middle" fill="var(--green)" font-size="13" font-weight="600">receiving-code-review</text>
+<text x="235" y="508" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">质量 / 反馈</text>
+
+<!-- 13. finishing-a-development-branch -->
+<rect x="370" y="580" width="220" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="var(--amber)" stroke-width="1.5"/>
+<text x="480" y="602" text-anchor="middle" fill="var(--amber)" font-size="13" font-weight="600">finishing-a-dev-branch</text>
+<text x="480" y="618" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">合并 / PR / 清理</text>
+
+<!-- 14. writing-skills (meta, outside main flow) -->
+<rect x="700" y="120" width="170" height="50" rx="8" fill="rgba(168,85,247,0.06)" stroke="var(--purple)" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="785" y="142" text-anchor="middle" fill="var(--purple)" font-size="12" font-weight="600" opacity="0.7">writing-skills</text>
+<text x="785" y="158" text-anchor="middle" fill="var(--text-tertiary)" font-size="10">元技能（非主流程）</text>
+
+<!-- ── Primary flow arrows ── -->
+<!-- hook → using-superpowers -->
+<line x1="320" y1="55" x2="398" y2="55" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+<text x="360" y="48" text-anchor="middle" fill="var(--accent-1)" font-size="9" font-family="var(--font-mono)">注入</text>
+
+<!-- using-superpowers → brainstorming -->
+<path d="M400,80 L280,80 L280,118" fill="none" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+<text x="340" y="74" text-anchor="middle" fill="var(--accent-1)" font-size="9" font-family="var(--font-mono)">路由</text>
+
+<!-- brainstorming → writing-plans -->
+<line x1="320" y1="145" x2="398" y2="145" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+<text x="360" y="138" text-anchor="middle" fill="var(--accent-1)" font-size="9" font-family="var(--font-mono)">终态 → 调用</text>
+
+<!-- writing-plans → subagent-driven -->
+<path d="M445,170 L445,210 L240,210 L240,258" fill="none" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+<text x="370" y="204" text-anchor="middle" fill="var(--accent-1)" font-size="9" font-family="var(--font-mono)">必需（推荐）</text>
+
+<!-- writing-plans → executing-plans -->
+<path d="M545,170 L545,210 L495,210 L495,258" fill="none" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+<text x="545" y="204" text-anchor="middle" fill="var(--accent-1)" font-size="9" font-family="var(--font-mono)">必需（备选）</text>
+
+<!-- subagent-driven → finishing -->
+<path d="M340,310 L340,340 L480,340 L480,578" fill="none" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+<text x="440" y="334" text-anchor="middle" fill="var(--accent-1)" font-size="9" font-family="var(--font-mono)">所有任务完成后</text>
+
+<!-- executing-plans → finishing -->
+<path d="M495,310 L495,340 L520,340 L520,578" fill="none" stroke="var(--accent-1)" stroke-width="2" marker-end="url(#arrowP)"/>
+
+<!-- ── REQUIRED sub-skill arrows (red) ── -->
+<!-- subagent → worktrees -->
+<path d="M340,260 L480,240 L680,80 L678,62" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowR)"/>
+<text x="530" y="165" fill="var(--red)" font-size="9" font-family="var(--font-mono)" opacity="0.7">必需</text>
+
+<!-- executing → worktrees -->
+<path d="M590,275 L680,115 L678,82" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowR)"/>
+
+<!-- ── Sub-agent usage arrows (cyan) ── -->
+<!-- subagent → TDD (subagent uses) -->
+<line x1="240" y1="310" x2="230" y2="388" stroke="var(--cyan)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowC)"/>
+<text x="215" y="350" fill="var(--cyan)" font-size="9" font-family="var(--font-mono)" opacity="0.7">子代理使用</text>
+
+<!-- subagent → requesting-code-review -->
+<line x1="340" y1="300" x2="870" y2="398" stroke="var(--cyan)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowC)"/>
+
+<!-- subagent → verification -->
+<line x1="340" y1="310" x2="700" y2="398" stroke="var(--cyan)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowC)"/>
+
+<!-- executing → TDD -->
+<line x1="460" y1="310" x2="280" y2="388" stroke="var(--cyan)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowC)"/>
+
+<!-- ── Conditional arrows (dotted gray) ── -->
+<!-- TDD → systematic-debugging (when bug found) -->
+<line x1="320" y1="415" x2="368" y2="415" stroke="var(--text-tertiary)" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrowC)"/>
+<text x="345" y="408" text-anchor="middle" fill="var(--text-tertiary)" font-size="8" font-family="var(--font-mono)">有缺陷？</text>
+
+<!-- any → verification (before claiming done) -->
+<line x1="560" y1="415" x2="608" y2="415" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowG)"/>
+
+<!-- verification → requesting-code-review -->
+<line x1="820" y1="415" x2="853" y2="415" stroke="var(--green)" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrowG)"/>
+
+<!-- code-review → receiving-code-review -->
+<path d="M895,440 L895,490 L330,490" fill="none" stroke="var(--green)" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrowG)"/>
+<text x="620" y="483" fill="var(--text-tertiary)" font-size="8" font-family="var(--font-mono)">收到反馈</text>
+
+<!-- using-superpowers → writing-skills (meta, dashed) -->
+<path d="M590,55 L700,55 L700,62" fill="none" stroke="var(--purple)" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrowC)" opacity="0.4"/>
+<text x="650" y="48" text-anchor="middle" fill="var(--purple)" font-size="8" font-family="var(--font-mono)" opacity="0.5">路由</text>
+
+<!-- ── Cycle indicators ── -->
+<rect x="155" y="340" width="100" height="22" rx="4" fill="rgba(239,68,68,0.06)" stroke="var(--red)" stroke-width="1" opacity="0.6"/>
+<text x="205" y="355" text-anchor="middle" fill="var(--red)" font-size="9" font-family="var(--font-mono)" opacity="0.8">RED-GREEN-REFACTOR</text>
+
+<!-- Subagent loop indicator -->
+<rect x="410" y="460" width="130" height="22" rx="4" fill="rgba(245,158,11,0.06)" stroke="var(--amber)" stroke-width="1" opacity="0.6"/>
+<text x="475" y="475" text-anchor="middle" fill="var(--amber)" font-size="9" font-family="var(--font-mono)" opacity="0.8">逐任务审查循环</text>
+
+</svg>
+</div>
+
+<!-- ─── Detail Cards ─── -->
+
+<div class="search-wrap">
+  <span class="search-icon">&#x1F50D;</span>
+  <input type="text" class="search-input" id="searchInput" placeholder="按名称或关键词筛选节点...">
+</div>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="toggleAll(true)">全部展开</button>
+  <button class="ctrl-btn" onclick="toggleAll(false)">全部折叠</button>
+</div>
+
+<main id="detailCards"></main>
+
+<footer class="footer">技能调用图，提取自源代码 — 技能设计参考第 5 部分</footer>
+
+</div>
+
+<script>
+const nodes = [
+  {
+    id:"session-start",name:"session-start hook",nameCN:"会话启动钩子",type:"meta",badge:"meta",badgeLabel:"元技能",
+    phase:"会话初始化",
+    role:"通过 hooks.json 将 using-superpowers 的内容注入每个新的 Claude 会话。在启动、清除和压缩事件时运行。平台感知：为 Claude Code、Cursor 和 Copilot CLI 发出不同的 JSON 格式。",
+    calls:[{name:"using-superpowers",type:"injects",note:"完整的 SKILL.md 内容，包裹在 <EXTREMELY_IMPORTANT> 中"}],
+    calledBy:[],
+    keySource:`<span class="cmt">// hooks/hooks.json — triggers on session start</span>
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "startup|clear|compact",
+      "hooks": [{
+        "type": "command",
+        "command": "run-hook.cmd session-start"
+      }]
+    }]
+  }
+}`
+  },
+  {
+    id:"using-superpowers",name:"using-superpowers",nameCN:"超能力引导",type:"bootstrap",badge:"meta",badgeLabel:"引导程序",
+    phase:"会话初始化 → 所有阶段",
+    role:"路由器。加载到每个会话中。强制在任何响应之前检查技能。定义技能优先级（流程优先，实现其次）和技能类型（刚性 vs 灵活）。用户指令始终覆盖技能。",
+    calls:[{name:"brainstorming",type:"routes",note:"在任何创造性工作之前 / 进入计划模式"},{name:"systematic-debugging",type:"routes",note:"遇到缺陷时"},{name:"writing-skills",type:"routes",note:"创建/编辑技能时"}],
+    calledBy:[{name:"session-start hook",type:"injects",note:"通过 <EXTREMELY_IMPORTANT> 注入完整内容"}],
+    keySource:`<span class="hl">If you think there is even a 1% chance a skill might
+apply to what you are doing, you ABSOLUTELY MUST
+invoke the skill.</span>
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE
+A CHOICE. YOU MUST USE IT.
+
+<span class="cmt">// Instruction Priority:</span>
+1. User's explicit instructions (highest)
+2. Superpowers skills
+3. Default system prompt (lowest)`
+  },
+  {
+    id:"using-git-worktrees",name:"using-git-worktrees",nameCN:"工作树管理",type:"infra",badge:"infra",badgeLabel:"基础设施",
+    phase:"执行之前",
+    role:"为功能开发创建隔离的 git 工作树。三步安全机制：(1) 目录选择优先级（已有 > CLAUDE.md > 询问）(2) gitignore 验证 (3) 干净基线测试。被每个执行技能调用。",
+    calls:[],
+    calledBy:[{name:"brainstorming",type:"REQUIRED",note:"设计批准后，实现之前"},{name:"subagent-driven-development",type:"REQUIRED",note:"分派任何任务之前"},{name:"executing-plans",type:"REQUIRED",note:"执行任何任务之前"}],
+    keySource:`<span class="hl">Announce at start:</span>
+"I'm using the using-git-worktrees skill to set up
+an isolated workspace."
+
+<span class="cmt">// Safety: MUST verify directory is ignored</span>
+git check-ignore -q .worktrees 2>/dev/null
+
+<span class="cmt">// Clean baseline before work begins:</span>
+npm test / cargo test / pytest
+<span class="hl">If tests fail: Report + ask permission</span>`
+  },
+  {
+    id:"brainstorming",name:"brainstorming",nameCN:"头脑风暴",type:"process-gate",badge:"phase",badgeLabel:"流程门控",
+    phase:"设计",
+    role:"硬性门控：防止在设计批准前进行任何实现。9 步检查清单：探索上下文 → 视觉伴侣 → 提问 → 提出方案 → 呈现设计 → 编写规格 → 自审 → 用户审核 → 调用 writing-plans。终态始终是 writing-plans。",
+    calls:[{name:"writing-plans",type:"terminal",note:"头脑风暴后唯一调用的技能。不直接实现。"},{name:"using-git-worktrees",type:"REQUIRED",note:"设计批准后"}],
+    calledBy:[{name:"using-superpowers",type:"routes",note:"在任何创造性工作之前"},{name:"using-superpowers",type:"routes",note:"进入计划模式之前"}],
+    keySource:`<span class="tag">&lt;HARD-GATE&gt;</span>
+Do NOT invoke any implementation skill, write any code,
+scaffold any project, or take any implementation action
+until you have presented a design and the user has
+approved it.
+<span class="tag">&lt;/HARD-GATE&gt;</span>
+
+<span class="hl">The terminal state is invoking writing-plans.</span>
+Do NOT invoke frontend-design, mcp-builder, or any other
+implementation skill.`
+  },
+  {
+    id:"writing-plans",name:"writing-plans",nameCN:"编写计划",type:"plan",badge:"phase",badgeLabel:"计划",
+    phase:"计划",
+    role:"生成包含细粒度步骤（每步 2-5 分钟）的详细实现计划。零上下文假设：工程师对项目一无所知。不允许占位符。自审检查：规格覆盖率、占位符扫描、类型一致性。",
+    calls:[{name:"subagent-driven-development",type:"REQUIRED (recommended)",note:"每个任务使用新的子代理 + 两阶段审查"},{name:"executing-plans",type:"REQUIRED (alternative)",note:"带检查点的内联执行"}],
+    calledBy:[{name:"brainstorming",type:"terminal",note:"头脑风暴的唯一出口"}],
+    keySource:`<span class="hl">&gt; **For agentic workers:** REQUIRED SUB-SKILL:
+Use superpowers:subagent-driven-development</span>
+
+<span class="hl">These are plan failures — never write them:</span>
+- "TBD", "TODO", "implement later"
+- "Add appropriate error handling"
+- "Write tests for the above" (without code)
+- "Similar to Task N" (repeat the code)`
+  },
+  {
+    id:"subagent-driven-dev",name:"subagent-driven-development",nameCN:"子代理驱动开发",type:"execution",badge:"phase",badgeLabel:"执行引擎",
+    phase:"执行",
+    role:"核心执行引擎。为每个任务分派新的子代理 → 两阶段审查（规格合规 THEN 代码质量）→ 审查循环直到通过 → 下一个任务。所有任务完成后：最终代码审查 → finishing-a-development-branch。",
+    calls:[{name:"using-git-worktrees",type:"REQUIRED",note:"开始之前"},{name:"requesting-code-review",type:"dispatches",note:"每个任务分派规格审查员 + 代码质量审查员"},{name:"finishing-a-development-branch",type:"REQUIRED",note:"所有任务完成后"},{name:"test-driven-development",type:"subagent uses",note:"实现者子代理遵循 TDD"}],
+    calledBy:[{name:"writing-plans",type:"REQUIRED (recommended)",note:"执行交接选择"}],
+    keySource:`<span class="hl">Core principle:</span> Fresh subagent per task +
+two-stage review (spec then quality) =
+high quality, fast iteration
+
+<span class="cmt">// Per task loop:</span>
+1. Dispatch implementer subagent
+2. Implementer: implement + test + commit + self-review
+3. <span class="hl">Dispatch spec reviewer</span> → matches spec?
+4. <span class="hl">Dispatch code quality reviewer</span> → approved?
+5. Mark complete → next task`
+  },
+  {
+    id:"executing-plans",name:"executing-plans",nameCN:"执行计划",type:"execution",badge:"phase",badgeLabel:"内联执行",
+    phase:"执行（备选）",
+    role:"无子代理隔离的内联计划执行。更简单但更不健壮：加载计划 → 创建 TodoWrite → 逐步执行 → finishing-a-development-branch。注明如果有子代理可用，subagent-driven 质量更高。",
+    calls:[{name:"using-git-worktrees",type:"REQUIRED",note:"开始之前"},{name:"finishing-a-development-branch",type:"REQUIRED",note:"所有任务完成后"}],
+    calledBy:[{name:"writing-plans",type:"REQUIRED (alternative)",note:"执行交接选择"}],
+    keySource:`<span class="hl">Note:</span> Superpowers works much better with access to
+subagents. If available, use subagent-driven-development
+instead of this skill.
+
+<span class="cmt">// Simple loop:</span>
+For each task:
+1. Mark as in_progress
+2. Follow each step exactly
+3. Run verifications as specified
+4. Mark as completed`
+  },
+  {
+    id:"tdd",name:"test-driven-development",nameCN:"测试驱动开发",type:"discipline",badge:"discipline",badgeLabel:"纪律",
+    phase:"执行（每个任务）",
+    role:"强制执行 RED-GREEN-REFACTOR 循环。由 subagent-driven-development 中的实现者子代理使用。铁律：没有失败的测试就不写生产代码。"删除就是删除"——不改编已有代码。",
+    calls:[],
+    calledBy:[{name:"subagent-driven-development",type:"subagent uses",note:"实现者子代理遵循 TDD"},{name:"executing-plans",type:"uses",note:"内联执行期间"}],
+    keySource:`<span class="hl">NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST</span>
+
+Write code before the test? Delete it. Start over.
+No exceptions:
+- Don't keep it as "reference"
+- Don't "adapt" it while writing tests
+- Delete means delete`
+  },
+  {
+    id:"systematic-debugging",name:"systematic-debugging",nameCN:"系统化调试",type:"discipline",badge:"discipline",badgeLabel:"纪律",
+    phase:"执行（发现缺陷时）",
+    role:"4 阶段调试：根因 → 模式分析 → 假设 → 实现。3 次失败升级规则：如果 3 次以上修复失败，停下来质疑架构。遇到缺陷时条件性调用。",
+    calls:[{name:"test-driven-development",type:"uses",note:"第 4 阶段：修复前创建失败的测试"}],
+    calledBy:[{name:"using-superpowers",type:"routes",note:"遇到缺陷时"},{name:"tdd",type:"conditional",note:"测试揭示意外行为时"}],
+    keySource:`<span class="hl">NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST</span>
+
+Phase 1: Root Cause Investigation
+Phase 2: Pattern Analysis
+Phase 3: Hypothesis and Testing
+Phase 4: Implementation
+
+<span class="hl">If ≥ 3 fixes failed: STOP and question the architecture.
+This is NOT a failed hypothesis — this is a wrong architecture.</span>`
+  },
+  {
+    id:"verification",name:"verification-before-completion",nameCN:"完成前验证",type:"quality",badge:"quality",badgeLabel:"质量门控",
+    phase:"执行（任何声明之前）",
+    role:"门控函数：识别 → 运行 → 读取 → 验证 → 然后才声明。"先有证据，后有声明。"广泛使用——在任何完成/成功声明之前。"跳过任何步骤 = 说谎，不是验证。"",
+    calls:[],
+    calledBy:[{name:"subagent-driven-development",type:"subagent uses",note:"声称任务完成之前"},{name:"executing-plans",type:"uses",note:"标记步骤完成之前"},{name:"using-git-worktrees",type:"uses",note:"报告工作树就绪之前"}],
+    keySource:`<span class="hl">BEFORE claiming any status or expressing satisfaction:</span>
+
+1. IDENTIFY: What command proves this claim?
+2. RUN: Execute the FULL command (fresh, complete)
+3. READ: Full output, check exit code, count failures
+4. VERIFY: Does output confirm the claim?
+5. ONLY THEN: Make the claim
+
+<span class="hl">Skip any step = lying, not verifying</span>`
+  },
+  {
+    id:"code-review",name:"requesting-code-review",nameCN:"请求代码审查",type:"quality",badge:"quality",badgeLabel:"审查",
+    phase:"执行（每个任务后）",
+    role:"分派代码审查子代理，携带精确上下文（BASE_SHA、HEAD_SHA、实现了什么）。在 subagent-driven-dev 中有两个子类型：规格合规审查员和代码质量审查员。各有独立的提示模板。",
+    calls:[],
+    calledBy:[{name:"subagent-driven-development",type:"dispatches",note:"每个任务：规格审查员 + 代码质量审查员"}],
+    keySource:`<span class="cmt">// Two-stage review in subagent-driven-dev:</span>
+
+<span class="hl">Stage 1: Spec compliance</span>
+"Do Not Trust the Report" — verify by reading code
+
+<span class="hl">Stage 2: Code quality</span>
+Only dispatch after spec compliance passes.
+Check: architecture, testing, error handling, DRY.`
+  },
+  {
+    id:"receiving-code-review",name:"receiving-code-review",nameCN:"接收代码审查",type:"quality",badge:"quality",badgeLabel:"反馈",
+    phase:"执行（收到反馈时）",
+    role:"如何处理代码审查反馈。6 步模式：阅读 → 理解 → 验证 → 评估 → 回复 → 实现。禁止：表演性附和（"你说得太对了！"）。要求：当反馈有误时进行技术性反驳。",
+    calls:[],
+    calledBy:[{name:"code-review",type:"triggers",note:"收到审查反馈时"}],
+    keySource:`<span class="cmt">// Response pattern:</span>
+1. READ: Complete feedback without reacting
+2. UNDERSTAND: Restate requirement
+3. VERIFY: Check against codebase
+4. EVALUATE: Technically sound?
+5. RESPOND: Technical acknowledgment or pushback
+6. IMPLEMENT: One item at a time
+
+<span class="hl">NEVER: "You're absolutely right!" "Great point!"</span>
+<span class="good">JUST: "Fixed. [Brief description]"</span>`
+  },
+  {
+    id:"finishing",name:"finishing-a-development-branch",nameCN:"完成开发分支",type:"process-gate",badge:"phase",badgeLabel:"完成",
+    phase:"完成",
+    role:"所有任务之后的最终门控。验证测试 → 确定基础分支 → 精确呈现 4 个选项（本地合并 / 推送+PR / 保留 / 丢弃）→ 执行选择 → 清理工作树。整个 SDLC 流水线的终态。",
+    calls:[{name:"verification-before-completion",type:"uses",note:"呈现选项前验证测试"}],
+    calledBy:[{name:"subagent-driven-development",type:"REQUIRED",note:"所有任务 + 最终审查之后"},{name:"executing-plans",type:"REQUIRED",note:"所有批次完成后"}],
+    keySource:`<span class="hl">Verify tests → Present options → Execute → Cleanup</span>
+
+Implementation complete. What would you like to do?
+1. Merge back to &lt;base-branch&gt; locally
+2. Push and create a Pull Request
+3. Keep the branch as-is
+4. Discard this work
+
+<span class="cmt">// Only cleanup worktree for options 1 and 4.</span>
+<span class="cmt">// Option 4 requires typed "discard" confirmation.</span>`
+  },
+  {
+    id:"writing-skills",name:"writing-skills",nameCN:"技能编写",type:"meta",badge:"meta",badgeLabel:"元技能",
+    phase:"SDLC 之外",
+    role:"创建新技能的元技能。将 TDD 应用于文档：RED（没有技能的基线）→ GREEN（编写技能）→ REFACTOR（堵住漏洞）。有自己的铁律：没有失败的测试就不写技能。不属于 SDLC 流水线——用于扩展技能系统本身。",
+    calls:[{name:"persuasion-principles",type:"references",note:"反合理化的心理学基础"}],
+    calledBy:[{name:"using-superpowers",type:"routes",note:"创建/编辑技能时"}],
+    keySource:`<span class="hl">Writing skills IS Test-Driven Development
+applied to process documentation.</span>
+
+<span class="hl">NO SKILL WITHOUT A FAILING TEST FIRST</span>
+
+Core principle: If you didn't watch an agent fail
+without the skill, you don't know if the skill
+teaches the right thing.`
+  }
+];
+
+const container = document.getElementById('detailCards');
+const searchInput = document.getElementById('searchInput');
+
+nodes.forEach(n => {
+  const card = document.createElement('div');
+  card.className = 'detail-panel';
+  card.id = 'card-' + n.id;
+  card.dataset.search = `${n.name} ${n.nameCN} ${n.type} ${n.phase} ${n.role} ${n.calls.map(c=>c.name).join(' ')} ${n.calledBy.map(c=>c.name).join(' ')}`.toLowerCase();
+
+  card.innerHTML = `
+    <div class="detail-header" onclick="toggleCard(this)">
+      <span class="badge ${n.badge}">${n.badgeLabel}</span>
+      <span class="detail-name">${n.name} <span style="color:var(--text-tertiary);font-size:.8rem">${n.nameCN}</span></span>
+      <span style="color:var(--text-tertiary);font-size:.72rem;white-space:nowrap">${n.phase}</span>
+      <span class="detail-arrow">&#9660;</span>
+    </div>
+    <div class="detail-body">
+      <div class="d-section">
+        <div class="d-label">角色</div>
+        <div class="d-text">${n.role}</div>
+      </div>
+
+      ${n.calls.length ? `
+      <div class="d-section">
+        <div class="d-label">调用 / 路由到 (${n.calls.length})</div>
+        <div class="conn-list">
+          ${n.calls.map(c => `<span class="conn-tag ${c.type === 'REQUIRED' || c.type === 'terminal' ? 'calls' : c.type === 'injects' ? 'injects' : c.type === 'subagent uses' ? 'parallel' : 'called-by'}">${c.name} <span style="opacity:.6">${c.type}</span></span>`).join('')}
+        </div>
+        ${n.calls.some(c=>c.note) ? `<div class="d-text" style="margin-top:.35rem;font-size:.78rem;color:var(--text-tertiary)">${n.calls.filter(c=>c.note).map(c=>`<strong>${c.name}</strong>: ${c.note}`).join(' &bull; ')}</div>` : ''}
+      </div>` : ''}
+
+      ${n.calledBy.length ? `
+      <div class="d-section">
+        <div class="d-label">被调用 (${n.calledBy.length})</div>
+        <div class="conn-list">
+          ${n.calledBy.map(c => `<span class="conn-tag called-by">${c.name} <span style="opacity:.6">${c.type}</span></span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <div class="d-section">
+        <div class="d-label">关键源码</div>
+        <button class="sub-toggle" onclick="toggleSub(this)">
+          <span class="sa">&#9654;</span> 显示源码摘录
+        </button>
+        <div class="sub-content">
+          <div class="code-block">${n.keySource}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  container.appendChild(card);
+});
+
+function toggleCard(h) { h.parentElement.classList.toggle('open'); }
+function toggleSub(b) { b.classList.toggle('open'); }
+function toggleAll(open) { document.querySelectorAll('.detail-panel').forEach(c => open ? c.classList.add('open') : c.classList.remove('open')); }
+
+searchInput.addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.detail-panel').forEach(card => {
+    card.style.display = (!q || card.dataset.search.includes(q)) ? '' : 'none';
+  });
+});
+</script>
+</body>
+</html>

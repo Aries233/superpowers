@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superpowers 核心技能深度分析</title>
+<style>
+:root {
+  --bg: #08080c;
+  --surface: rgba(255,255,255,0.03);
+  --surface-hover: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.06);
+  --border-accent: rgba(255,255,255,0.12);
+  --text: #ededef;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent-1: #f59e0b;
+  --accent-2: #ef4444;
+  --accent-3: #34d399;
+  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --cyan: #06b6d4;
+  --purple: #a855f7;
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, 'Inter', system-ui, sans-serif;
+  --radius: 12px;
+  --transition: cubic-bezier(0.4, 0, 0.2, 1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 100vh;
+}
+body::before {
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(245,158,11,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(239,68,68,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(6,182,212,0.03) 0%, transparent 60%);
+  pointer-events:none;z-index:0;
+}
+.container { max-width:920px; margin:0 auto; padding:2rem 1.5rem 4rem; position:relative; z-index:1; }
+
+/* Header */
+.header { text-align:center; padding:3rem 0 2.5rem; border-bottom:1px solid var(--border); margin-bottom:2.5rem; }
+.header h1 { font-size:2rem; font-weight:700; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-0.02em; margin-bottom:0.75rem; }
+.header .subtitle { color:var(--text-secondary); font-size:0.95rem; max-width:640px; margin:0 auto; }
+.chips { display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center; margin-top:1.25rem; }
+.chip { display:inline-flex; align-items:center; gap:0.35rem; padding:0.3rem 0.75rem; border-radius:999px; font-size:0.75rem; font-weight:500; border:1px solid var(--border); background:var(--surface); color:var(--text-secondary); backdrop-filter:blur(8px); }
+.chip .dot { width:6px; height:6px; border-radius:50%; }
+.chip .dot.amber { background:var(--amber); }
+.chip .dot.red { background:var(--red); }
+.chip .dot.green { background:var(--green); }
+.chip .dot.cyan { background:var(--cyan); }
+
+/* TOC */
+.toc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:2.5rem; backdrop-filter:blur(12px); }
+.toc h2 { font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-tertiary); margin-bottom:1rem; }
+.toc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:0.4rem; }
+.toc-link { display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.75rem; border-radius:8px; color:var(--text-secondary); text-decoration:none; font-size:0.85rem; transition:all 0.2s var(--transition); cursor:pointer; }
+.toc-link:hover { background:var(--surface-hover); color:var(--text); }
+.toc-link .toc-num { font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-1); min-width:1.8rem; }
+
+/* Search */
+.search-wrap { position:relative; margin-bottom:2rem; }
+.search-input { width:100%; padding:0.75rem 1rem 0.75rem 2.5rem; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:0.85rem; font-family:var(--font-sans); outline:none; transition:border-color 0.2s var(--transition); backdrop-filter:blur(8px); }
+.search-input:focus { border-color:var(--accent-1); }
+.search-icon { position:absolute; left:0.85rem; top:50%; transform:translateY(-50%); color:var(--text-tertiary); font-size:0.85rem; pointer-events:none; }
+
+/* Controls */
+.controls { display:flex; justify-content:flex-end; gap:0.5rem; margin-bottom:1rem; }
+.ctrl-btn { padding:0.35rem 0.75rem; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-secondary); font-size:0.75rem; cursor:pointer; transition:all 0.2s var(--transition); font-family:var(--font-sans); }
+.ctrl-btn:hover { background:var(--surface-hover); color:var(--text); border-color:var(--border-accent); }
+
+/* Skill Card */
+.skill-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:2rem; backdrop-filter:blur(12px); overflow:hidden; transition:border-color 0.3s var(--transition); }
+.skill-card:hover { border-color:var(--border-accent); }
+.skill-card.hidden { display:none; }
+
+.skill-header { display:flex; align-items:flex-start; justify-content:space-between; padding:1.25rem 1.5rem; cursor:pointer; user-select:none; gap:1rem; }
+.skill-header:hover { background:var(--surface-hover); }
+.skill-title-row { display:flex; align-items:center; gap:0.75rem; flex:1; min-width:0; }
+.skill-num { font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-1); flex-shrink:0; }
+.skill-name { font-size:1.1rem; font-weight:600; color:var(--text); }
+.skill-badges { display:flex; flex-wrap:wrap; gap:0.35rem; flex-shrink:0; }
+.skill-arrow { font-size:0.9rem; color:var(--text-tertiary); transition:transform 0.3s var(--transition); flex-shrink:0; margin-top:0.15rem; }
+.skill-card.open .skill-arrow { transform:rotate(180deg); }
+
+.skill-body { display:none; padding:0 1.5rem 1.5rem; border-top:1px solid var(--border); }
+.skill-card.open .skill-body { display:block; }
+
+/* Layer & principle badges */
+.badge { display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.55rem; border-radius:5px; font-size:0.68rem; font-weight:600; letter-spacing:0.02em; }
+.badge.l0 { background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.2); }
+.badge.l1 { background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.2); }
+.badge.l2 { background:rgba(6,182,212,0.12); color:#06b6d4; border:1px solid rgba(6,182,212,0.2); }
+.badge.l3 { background:rgba(52,211,153,0.12); color:#34d399; border:1px solid rgba(52,211,153,0.2); }
+.badge.l4 { background:rgba(168,85,247,0.12); color:#a855f7; border:1px solid rgba(168,85,247,0.2); }
+.badge.principle { background:rgba(245,158,11,0.08); color:var(--accent-1); border:1px solid rgba(245,158,11,0.15); }
+.badge.avoid { background:rgba(239,68,68,0.06); color:var(--red); border:1px solid rgba(239,68,68,0.12); opacity:0.7; }
+.badge.pattern { background:rgba(52,211,153,0.08); color:var(--green); border:1px solid rgba(52,211,153,0.15); }
+
+/* Analysis sections */
+.analysis-section { margin-top:1.5rem; }
+.section-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-tertiary); margin-bottom:0.5rem; font-weight:600; display:flex; align-items:center; gap:0.5rem; }
+.section-label.accent { color:var(--accent-1); }
+.section-label .sec-icon { font-size:0.85rem; }
+
+.analysis-text { color:var(--text-secondary); font-size:0.88rem; line-height:1.85; }
+.analysis-text strong { color:var(--text); font-weight:600; }
+.analysis-text em { color:var(--accent-1); font-style:normal; font-weight:500; }
+
+/* Sub-collapsible */
+.sub-toggle { display:flex; align-items:center; gap:0.5rem; padding:0.55rem 0; cursor:pointer; user-select:none; border:none; background:none; color:var(--text); font-size:0.85rem; font-weight:500; width:100%; text-align:left; border-bottom:1px solid var(--border); transition:color 0.2s var(--transition); }
+.sub-toggle:hover { color:var(--accent-1); }
+.sub-toggle .sub-arrow { font-size:0.65rem; color:var(--text-tertiary); transition:transform 0.3s var(--transition); }
+.sub-toggle.open .sub-arrow { transform:rotate(90deg); }
+.sub-content { display:none; padding:0.75rem 0; }
+.sub-toggle.open + .sub-content { display:block; }
+
+/* Code blocks */
+.code-block { background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:8px; padding:1rem 1.25rem; overflow-x:auto; font-family:var(--font-mono); font-size:0.78rem; line-height:1.6; color:var(--text-secondary); margin-top:0.75rem; white-space:pre-wrap; word-break:break-word; }
+.code-block .kw { color:#c678dd; }
+.code-block .fn { color:#61afef; }
+.code-block .str { color:#98c379; }
+.code-block .num { color:#d19a66; }
+.code-block .cmt { color:rgba(255,255,255,0.25); font-style:italic; }
+.code-block .tag { color:#e06c75; }
+.code-block .hl { background:rgba(245,158,11,0.1); display:inline; padding:0.1em 0.2em; border-radius:3px; }
+
+.code-source { display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem; font-size:0.72rem; color:var(--text-tertiary); font-family:var(--font-mono); }
+.code-source .file-ref { color:var(--cyan); }
+
+/* Table */
+.a-table { width:100%; border-collapse:collapse; font-size:0.8rem; margin-top:0.5rem; }
+.a-table th { text-align:left; padding:0.45rem 0.7rem; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-tertiary); border-bottom:1px solid var(--border); font-weight:600; }
+.a-table td { padding:0.45rem 0.7rem; border-bottom:1px solid rgba(255,255,255,0.03); color:var(--text-secondary); vertical-align:top; }
+.a-table tr:last-child td { border-bottom:none; }
+
+/* Tags */
+.tag-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.4rem; }
+
+/* Decision callout */
+.decision-callout { background:rgba(245,158,11,0.05); border-left:3px solid var(--accent-1); padding:0.75rem 1rem; border-radius:0 8px 8px 0; margin:0.75rem 0; font-size:0.85rem; color:var(--text-secondary); }
+.decision-callout strong { color:var(--accent-1); }
+
+/* Footer */
+.footer { margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border); text-align:center; color:var(--text-tertiary); font-size:0.78rem; }
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+
+@media (max-width:640px) {
+  .container { padding:1rem; }
+  .header h1 { font-size:1.5rem; }
+  .skill-header { padding:1rem; flex-direction:column; }
+  .skill-body { padding:0 1rem 1rem; }
+  .toc-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="header">
+  <h1>核心技能深度分析</h1>
+  <p class="subtitle">优先级 1-8 技能 &mdash; 设计目标、架构决策、说服机制与防御层分析</p>
+  <div class="chips">
+    <span class="chip"><span class="dot amber"></span>权威</span>
+    <span class="chip"><span class="dot green"></span>承诺</span>
+    <span class="chip"><span class="dot cyan"></span>社会认同</span>
+    <span class="chip"><span class="dot red"></span>稀缺</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>技能索引</h2>
+  <div class="toc-grid" id="tocGrid"></div>
+</nav>
+
+<div class="search-wrap">
+  <span class="search-icon">&#x1F50D;</span>
+  <input type="text" class="search-input" id="searchInput" placeholder="按名称、模式或关键词筛选技能...">
+</div>
+
+<div class="controls">
+  <button class="ctrl-btn" onclick="toggleAll(true)">全部展开</button>
+  <button class="ctrl-btn" onclick="toggleAll(false)">全部折叠</button>
+</div>
+
+<main id="skillsContainer"></main>
+
+<footer class="footer">
+  基于 superpowers/skills/ 源代码生成 &mdash; 技能设计参考 第 2 部分
+</footer>
+
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const skills = [
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. writing-skills
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "writing-skills",
+  num: "01",
+  name: "writing-skills",
+  nameCN: "技能编写",
+  type: "元技能",
+  layers: ["l0","l1","l2","l3","l4"],
+  principlesUsed: ["Authority","Commitment","Social Proof"],
+  principlesAvoided: ["Liking","Reciprocity"],
+  designGoal: "将 Skill 创建过程工程化为 TDD 流程。解决的核心问题：未经验证的 Skill 会产生幻觉、遗漏和无效指令。这个 Skill 本身就是\"如何编写有效 Skill\"的权威指南，是整个 superpowers 生态的元技能。",
+  keyDecisions: [
+    { q: "为什么要求 'delete' 而不是 'keep as reference'?", a: "因为测试表明代理会\"adapt\"保留的代码，实际上变成测试后编写（tests-after）。\"Delete means delete\" 消除了这条合理化路径。这是一个从基线测试中发现的 concrete loophole，不是理论推演。" },
+    { q: "为什么 description 不能描述工作流程?", a: "CSO 测试发现：当 description 包含工作流摘要时，Claude 会跟随摘要而非阅读完整 Skill 内容。例如 description 说 'code review between tasks' 导致 Claude 只做一次 review，尽管 flowchart 明确要求两次。触发条件-only 的 description 强制 Claude 加载完整内容。" },
+    { q: "为什么要求 150-200 word 限制?", a: "getting-started 和高频加载的 Skill 注入到每个会话。每个 token 都消耗上下文窗口。精简的 Skill = 更多的上下文留给实际工作。" },
+    { q: "为什么用 'your human partner' 而不是 'the user'?", a: "'your human partner' 建立协作关系（Unity 原则），暗示平等的工作关系而非服务关系。这个词在 CLAUDE.md 中被明确定义为刻意选择。" }
+  ],
+  flowchart: `<span class="cmt">RED Phase:</span>        Run baseline scenario WITHOUT skill
+                  ↓ Document agent rationalizations
+<span class="cmt">GREEN Phase:</span>      Write minimal skill addressing those violations
+                  ↓ Run same scenarios WITH skill
+<span class="cmt">REFACTOR Phase:</span>   Agent found new rationalization?
+                  ↓ Add explicit counter → Re-test → Loop
+
+<span class="hl">The Iron Law:</span> NO SKILL WITHOUT A FAILING TEST FIRST`,
+  flowchartCN: `<span class="cmt">RED 阶段：</span>        在没有 Skill 的情况下运行基线场景
+                  ↓ 记录代理的合理化借口
+<span class="cmt">GREEN 阶段：</span>      编写解决这些违规的最小 Skill
+                  ↓ 在有 Skill 的情况下运行相同场景
+<span class="cmt">REFACTOR 阶段：</span>  代理发现了新的合理化借口？
+                  ↓ 添加显式反驳 → 重新测试 → 循环
+
+<span class="hl">铁律：</span> 没有先写失败的测试，就不能写 Skill`,
+  persuasionAnalysis: "<strong>Authority</strong> 是主轴：Iron Law 用全大写祈使句、\"No exceptions\" 消除决策空间。反合理化表格用断言式 Reality 列建立不可反驳的规则。<strong>Commitment</strong> 通过 TodoWrite checklist 实现过程锁定。<strong>Social Proof</strong> 出现在多处：\"Checklists without TodoWrite tracking = steps get skipped. Every time.\" 以及基线测试数据的普遍化陈述。<strong>Liking</strong> 和 <strong>Reciprocity</strong> 被明确排除 — persuasion-principles.md 指出 Liking 与诚实反馈文化冲突，会导致谄媚；Reciprocity 几乎不需要且可能显得操控。",
+  defenseAnalysis: "<span class='badge l0'>L0 注入</span>：CSO 优化确保 Skill 被发现和加载（description 作为触发器）<br><span class='badge l1'>L1 锁定</span>：Iron Law + Commitment Announce 锁定行为<br><span class='badge l2'>L2 反合理化</span>：Rationalization Table + Red Flags List 封堵所有已知借口<br><span class='badge l3'>L3 顺序门控</span>：RED → GREEN → REFACTOR 强制顺序<br><span class='badge l4'>L4 证据验证</span>：每个阶段要求可观察的代理行为作为证据",
+  reusablePatterns: ["Iron Law","Anti-Rationalization Table","Red Flags","Sequential Gating","Implementation Intentions","Clean Baseline"],
+  excerpts: [
+    { title: "The Iron Law", titleCN: "铁律", source: "skills/writing-skills/SKILL.md:376-393", code: `<span class="hl">NO SKILL WITHOUT A FAILING TEST FIRST</span>
+
+Write skill before testing? Delete it. Start over.
+Edit skill without testing? Same violation.
+
+<span class="hl">No exceptions:</span>
+- Not for "simple additions"
+- Not for "just adding a section"
+- Not for "documentation updates"
+- Don't keep untested changes as "reference"
+- Don't "adapt" while running tests
+- Delete means delete`,
+      translation: `<span class="hl">没有先写失败的测试，就不能写 Skill</span>
+
+先写 Skill 再测试？删掉它，从头来过。
+修改 Skill 后没有测试？同样算违规。
+
+<span class="hl">没有例外：</span>
+- 不是"简单的添加"
+- 不是"只是加一个章节"
+- 不是"文档更新"
+- 不要把未测试的改动留着当"参考"
+- 不要在运行测试的时候"改造"它
+- 删除就是彻底删除` },
+    { title: "CSO: Description Anti-Pattern", titleCN: "CSO：Description 反模式", source: "skills/writing-skills/SKILL.md:150-158", code: `<span class="cmt">// Testing revealed that when a description summarizes
+// the skill's workflow, Claude may follow the description
+// instead of reading the full skill content.</span>
+
+<span class="cmt">// ❌ BAD: Summarizes workflow</span>
+description: Use when executing plans - dispatches
+  subagent per task with code review between tasks
+
+<span class="cmt">// ✅ GOOD: Just triggering conditions</span>
+description: Use when executing implementation plans
+  with independent tasks in the current session`,
+      translation: `<span class="cmt">// 测试表明：当 description 总结了
+// Skill 的工作流时，Claude 可能跟随 description
+// 而不是阅读完整的 Skill 内容。</span>
+
+<span class="cmt">// ❌ 错误：总结了工作流</span>
+description: 在执行计划时使用 — 每个任务派发子代理，
+  任务之间进行代码审查
+
+<span class="cmt">// ✅ 正确：只有触发条件</span>
+description: 在当前会话中执行包含独立任务的实现计划时使用` },
+    { title: "Close Every Loophole", titleCN: "堵住每个漏洞", source: "skills/writing-skills/SKILL.md:465-485", code: `<span class="cmt">// Don't just state the rule - forbid specific workarounds:</span>
+
+<span class="bad">Write code before test? Delete it.</span>
+
+<span class="good">Write code before test? Delete it. Start over.
+
+No exceptions:
+- Don't keep it as "reference"
+- Don't "adapt" it while writing tests
+- Don't look at it
+- Delete means delete</span>`,
+      translation: `<span class="cmt">// 不要只声明规则 — 还要禁止具体的绕行方式：</span>
+
+<span class="bad">先写代码后测试？删掉它。</span>
+
+<span class="good">先写代码后测试？删掉它，从头来过。
+
+没有例外：
+- 不要留着当"参考"
+- 不要在写测试的时候"改造"它
+- 不要看它
+- 删除就是彻底删除</span>` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. using-superpowers
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "using-superpowers",
+  num: "02",
+  name: "using-superpowers",
+  nameCN: "使用超能力",
+  type: "引导 / 路由",
+  layers: ["l0","l1","l2"],
+  principlesUsed: ["Authority","Commitment"],
+  principlesAvoided: [],
+  designGoal: "确保代理在每次会话开始时就知道 Skill 系统的存在，并在每个用户消息到达时检查是否有相关 Skill。这是整个 Skill 生态的引导程序（bootstrap） — 如果这个 Skill 失效，所有其他 Skill 都不会被触发。",
+  keyDecisions: [
+    { q: "为什么 'even a 1% chance' 而不是更高的阈值?", a: "代理在压力下会低估 Skill 的相关性。'1% chance' 将检查成本（调用 Skill tool 看一眼）降到几乎为零，同时最大化覆盖率。如果 Skill 不适用，代理可以安全地忽略它。误检的代价远低于漏检的代价。" },
+    { q: "为什么用 <EXTREMELY-IMPORTANT> XML 标签?", a: "这是 Claude 对系统级指令的注意力放大器。在 session-start hook 中注入时，这个标签确保内容不会被当作普通上下文忽略。Hooks 系统将 using-superpowers 的完整内容包装在 <EXTREMELY_IMPORTANT> 中注入到每个会话。" },
+    { q: "为什么 'skill check comes BEFORE clarifying questions'?", a: "因为 Skill 会告诉代理 HOW to gather information。先问问题再查 Skill = 用默认行为收集信息，然后可能需要重做。先查 Skill 可以用正确的方法从一开始就收集信息。" },
+    { q: "为什么区分 Rigid vs Flexible Skill 类型?", a: "Rigid Skill（TDD, debugging）的纪律性规则不能被\"adapt away\"；Flexible Skill（patterns）的原则需要根据上下文调整。这个区分防止代理用\"灵活性\"为借口跳过 Rigid Skill。" }
+  ],
+  flowchart: `<span class="cmt">User message received</span>
+       ↓
+<span class="kw">About to EnterPlanMode?</span> ──no──→ <span class="kw">Any skill applies?</span> (even 1%)
+       ↓yes                              ↓yes            ↓no
+<span class="kw">Already brainstormed?</span>           Invoke Skill     Respond directly
+  ↓no         ↓yes                      tool
+  Invoke     Continue                   ↓
+  brainstorming                   Announce usage
+  skill                            ↓
+       ↓                      Has checklist?
+  Continue ──────────────────────→ yes: TodoWrite
+                                       no: Follow`,
+  flowchartCN: `<span class="cmt">收到用户消息</span>
+       ↓
+<span class="kw">即将进入计划模式？</span> ──否──→ <span class="kw">有适用的 Skill 吗？</span>（哪怕 1%）
+       ↓是                              ↓是             ↓否
+<span class="kw">已经做过头脑风暴？</span>             调用 Skill      直接响应
+  ↓否         ↓是                      工具
+  调用       继续                      ↓
+  brainstorming                    宣布使用
+  技能                              ↓
+       ↓                       有检查清单吗？
+  继续 ───────────────────────→ 是：TodoWrite
+                                       否：遵循`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 是核心驱动力：\"IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.\" 这种极端声明消除了所有决策空间。<strong>Commitment</strong> 通过流程图中的 \"Announce: 'Using [skill] to [purpose]'\" 实现 — 公开宣布使用 Skill 后，心理上更难违反。Red Flags 表格覆盖了 12 种常见的跳过 Skill 的合理化借口。值得注意的是这个 Skill <strong>没有</strong> 使用 Social Proof — 它不需要\"其他人也这样做\"的论证，因为它定义的是系统级规则。",
+  defenseAnalysis: "<span class='badge l0'>L0 注入</span>：通过 session-start hook 将完整内容注入每个会话，XML 标签放大注意力<br><span class='badge l1'>L1 锁定</span>：EXTREMELY-IMPORTANT 标签 + 'YOU DO NOT HAVE A CHOICE' 锁定行为<br><span class='badge l2'>L2 反合理化</span>：12 项 Red Flags 覆盖所有已知的跳过借口<br><span class='badge l3'>L3 顺序门控</span>：Flowchart 强制 skill check → announce → checklist → follow 顺序",
+  reusablePatterns: ["HARD-GATE","When/Then Trigger","Commitment Announce","Anti-Rationalization Table","Red Flags"],
+  excerpts: [
+    { title: "EXTREMELY-IMPORTANT Injection", titleCN: "EXTREMELY-IMPORTANT 注入", source: "skills/using-superpowers/SKILL.md:10-16", code: `<span class="tag">&lt;EXTREMELY-IMPORTANT&gt;</span>
+If you think there is even a <span class="hl">1% chance</span> a skill might
+apply to what you are doing, you ABSOLUTELY MUST
+invoke the skill.
+
+<span class="hl">IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE
+A CHOICE. YOU MUST USE IT.</span>
+
+This is not negotiable. This is not optional.
+You cannot rationalize your way out of this.
+<span class="tag">&lt;/EXTREMELY-IMPORTANT&gt;</span>`,
+      translation: `<span class="tag">&lt;极其重要&gt;</span>
+如果你认为哪怕只有 <span class="hl">1% 的可能性</span>某个 Skill
+适用于你正在做的事情，你绝对必须调用该 Skill。
+
+<span class="hl">如果有 Skill 适用于你的任务，你没有选择余地。
+你必须使用它。</span>
+
+这不可协商。这不是可选的。
+你不能用合理化的方式绕过它。
+<span class="tag">&lt;/极其重要&gt;</span>` },
+    { title: "Instruction Priority", titleCN: "指令优先级", source: "skills/using-superpowers/SKILL.md:19-26", code: `<span class="cmt">// Superpowers skills override default system prompt
+// behavior, but user instructions always take precedence:</span>
+
+<span class="num">1.</span> <span class="hl">User's explicit instructions</span> (CLAUDE.md, direct requests)
+<span class="num">2.</span> Superpowers skills — override default system behavior
+<span class="num">3.</span> Default system prompt — lowest priority`,
+      translation: `<span class="cmt">// Superpowers 技能会覆盖默认系统提示行为，
+// 但用户指令始终拥有最高优先级：</span>
+
+<span class="num">1.</span> <span class="hl">用户的明确指令</span>（CLAUDE.md、直接请求）
+<span class="num">2.</span> Superpowers 技能 — 覆盖默认系统行为
+<span class="num">3.</span> 默认系统提示 — 最低优先级` },
+    { title: "Session Start Hook", titleCN: "会话启动 Hook", source: "hooks/session-start:35", code: `session_context="<span class="tag">&lt;EXTREMELY_IMPORTANT&gt;</span>\\n
+You have superpowers.\\n\\n
+Below is the full content of your 'superpowers:using-superpowers'
+skill - your introduction to using skills.\\n\\n
+\${using_superpowers_escaped}\\n
+<span class="tag">&lt;/EXTREMELY_IMPORTANT&gt;</span>"`,
+      translation: `session_context="<span class="tag">&lt;极其重要&gt;</span>\\n
+你拥有超能力。\\n\\n
+以下是你的 'superpowers:using-superpowers'
+技能的完整内容 — 你使用技能的入门指南。\\n\\n
+\${using_superpowers_escaped}\\n
+<span class="tag">&lt;/极其重要&gt;</span>"` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. brainstorming
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "brainstorming",
+  num: "03",
+  name: "brainstorming",
+  nameCN: "头脑风暴",
+  type: "流程门控",
+  layers: ["l1","l3"],
+  principlesUsed: ["Authority","Scarcity","Commitment"],
+  principlesAvoided: [],
+  designGoal: "防止代理在未充分理解需求的情况下直接编写代码。通过强制的设计-审批循环，确保每个实现都有明确的设计文档作为基础。这是 \"measure twice, cut once\" 在 AI 代理工作流中的实现。",
+  keyDecisions: [
+    { q: "为什么 HARD-GATE 阻断所有实现动作?", a: "因为代理（尤其是能力强的大模型）有一个强烈的倾向：快速跳到代码实现。\"This is too simple to need a design\" 是最常见的合理化借口。HARD-GATE 不设例外（'EVERY project regardless of perceived simplicity'），因为测试表明即使是\"简单\"项目，未设计就直接实现也会产生大量返工。" },
+    { q: "为什么要求 'one question at a time'?", a: "多问题同时提出会导致：(a) 用户选择性地回答，遗漏关键信息；(b) 代理基于不完整的回答做出错误假设。逐个提问强制信息完整性。" },
+    { q: "为什么终端状态是 writing-plans 而不是直接实现?", a: "单一出口点确保流程一致性。如果允许从 brainstorming 直接跳到实现，代理可能跳过计划阶段。writing-plans 作为唯一出口 = 强制计划。" },
+    { q: "为什么 spec 需要用户审批?", a: "Skill 自审（spec self-review）只能发现内部一致性问题。用户审批捕捉的是 \"这是不是我们想要的东西\" — 这需要人类的领域知识和意图理解，代理无法替代。" }
+  ],
+  flowchart: `<span class="cmt">Explore project context</span>
+       ↓
+<span class="kw">Visual questions ahead?</span> → yes → Offer Visual Companion
+       ↓no
+<span class="cmt">Ask clarifying questions</span> (one at a time)
+       ↓
+<span class="cmt">Propose 2-3 approaches</span> (with trade-offs)
+       ↓
+<span class="cmt">Present design sections</span> ←─────no──┐
+       ↓yes                             │
+<span class="cmt">Write design doc</span>                 │
+       ↓                             │
+<span class="cmt">Spec self-review</span> (fix inline)   │
+       ↓                             │
+<span class="kw">User approves?</span> → no → revise ───┘
+       ↓yes
+<span class="hl">Invoke writing-plans skill</span> (terminal state)`,
+  flowchartCN: `<span class="cmt">探索项目上下文</span>
+       ↓
+<span class="kw">接下来有可视化需求？</span> → 是 → 提供可视化辅助
+       ↓否
+<span class="cmt">提出澄清问题</span>（逐个提问）
+       ↓
+<span class="cmt">提出 2-3 种方案</span>（附权衡分析）
+       ↓
+<span class="cmt">展示设计章节</span> ←─────否──┐
+       ↓是                             │
+<span class="cmt">编写设计文档</span>                 │
+       ↓                             │
+<span class="cmt">规格自审</span>（内联修复）       │
+       ↓                             │
+<span class="kw">用户批准？</span> → 否 → 修改 ───┘
+       ↓是
+<span class="hl">调用 writing-plans 技能</span>（终端状态）`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 通过 HARD-GATE 实现绝对阻断。\"Do NOT invoke any implementation skill... until you have presented a design and the user has approved it.\" 没有例外条款。<strong>Scarcity</strong> 出现在 \"Anti-Pattern: This Is Too Simple To Need A Design\" 段落 — 通过将 \"simple\" 从例外转为反模式，制造了紧迫感。<strong>Commitment</strong> 通过 TodoWrite checklist（9 个必须按序完成的步骤）实现过程锁定。流程图中的循环（design → user approves? → no → revise）确保不会在未获批准时前进。",
+  defenseAnalysis: "<span class='badge l1'>L1 锁定</span>：HARD-GATE 阻断所有实现动作直到设计获批<br><span class='badge l3'>L3 顺序门控</span>：9 步 checklist 强制探索→提问→提案→设计→spec→审批→交接<br><span class='badge l0'>L0 注入</span>：description 中 'You MUST use this before any creative work' 触发器",
+  reusablePatterns: ["HARD-GATE","Sequential Gating","Commitment Announce","When/Then Trigger"],
+  excerpts: [
+    { title: "HARD-GATE", titleCN: "硬门控", source: "skills/brainstorming/SKILL.md:12-14", code: `<span class="tag">&lt;HARD-GATE&gt;</span>
+Do NOT invoke any implementation skill, write any code,
+scaffold any project, or take any implementation action
+until you have presented a design and the user has
+approved it. <span class="hl">This applies to EVERY project regardless
+of perceived simplicity.</span>
+<span class="tag">&lt;/HARD-GATE&gt;</span>`,
+      translation: `<span class="tag">&lt;硬门控&gt;</span>
+在你展示设计方案并获得用户批准之前，
+不要调用任何实现类技能、不要写任何代码、
+不要搭建任何项目、不要采取任何实现行动。
+<span class="hl">这适用于所有项目，无论它看起来多简单。</span>
+<span class="tag">&lt;/硬门控&gt;</span>` },
+    { title: "Anti-Pattern Statement", titleCN: "反模式声明", source: "skills/brainstorming/SKILL.md:16-18", code: `<span class="cmt">## Anti-Pattern: "This Is Too Simple To Need A Design"</span>
+
+Every project goes through this process. A todo list,
+a single-function utility, a config change — all of them.
+<span class="hl">"Simple" projects are where unexamined assumptions
+cause the most wasted work.</span>`,
+      translation: `<span class="cmt">## 反模式："这太简单了不需要设计"</span>
+
+每个项目都要经过这个流程。一个待办清单、
+一个单函数工具、一个配置修改 — 全部都要。
+<span class="hl">"简单"的项目正是未经检验的假设
+造成最多返工的地方。</span>` },
+    { title: "Terminal State Constraint", titleCN: "终端状态约束", source: "skills/brainstorming/SKILL.md:66", code: `<span class="hl">The terminal state is invoking writing-plans.</span>
+Do NOT invoke frontend-design, mcp-builder, or any other
+implementation skill. The ONLY skill you invoke after
+brainstorming is writing-plans.`,
+      translation: `<span class="hl">终端状态是调用 writing-plans。</span>
+不要调用 frontend-design、mcp-builder 或任何其他
+实现类技能。头脑风暴之后唯一调用的技能就是 writing-plans。` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. writing-plans
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "writing-plans",
+  num: "04",
+  name: "writing-plans",
+  nameCN: "编写计划",
+  type: "流程 / 文档",
+  layers: ["l1","l2","l3","l4"],
+  principlesUsed: ["Authority","Commitment"],
+  principlesAvoided: [],
+  designGoal: "生成足够详细的实现计划，使一个零上下文的代理（或人类开发者）能够按步执行而不需要额外信息。计划必须包含精确的文件路径、完整代码、预期输出 — 不允许任何占位符。",
+  keyDecisions: [
+    { q: "为什么 'assume zero context and questionable taste'?", a: "这是一个故意极端的人设假设。如果计划对最糟糕的执行者都有效，那么对任何执行者都有效。'Questionable taste' 防止执行者用\"更好的方式\"替代计划中的实现 — 计划必须足够明确以至于不留\"改进\"空间。" },
+    { q: "为什么 'No Placeholders' 是硬规则?", a: "\"TBD\"、\"implement later\"、\"add appropriate error handling\" 都是代理偷懒的信号。如果步骤没有实际代码，执行者必须猜测 — 猜测导致不一致的实现。每一步必须包含完整内容。" },
+    { q: "为什么 step 粒度是 2-5 分钟?", a: "更粗的粒度（\"implement the feature\"）给执行者太多决策空间；更细的粒度（\"type the letter 'a'\"）浪费 token 且降低灵活性。2-5 分钟的步骤是\"可验证的最小动作单元\"。" },
+    { q: "为什么自审是 inline 不是 subagent?", a: "自审是计划作者对自己的工作做 fresh-eyes check。这不是需要独立视角的代码审查 — 而是作者自己重新审视自己的输出。Subagent 审查在执行阶段进行（spec reviewer, code quality reviewer）。" }
+  ],
+  flowchart: `<span class="cmt">Scope check: multiple subsystems?</span> → suggest separate plans
+       ↓
+<span class="cmt">Map file structure</span> (decomposition decisions)
+       ↓
+<span class="cmt">Define tasks</span> (2-5 min steps, TDD, complete code)
+       ↓
+<span class="cmt">Self-review:</span>
+  <span class="num">1.</span> Spec coverage (every requirement → task?)
+  <span class="num">2.</span> Placeholder scan (red flag patterns)
+  <span class="num">3.</span> Type consistency (names match across tasks)
+       ↓
+<span class="cmt">Save plan</span> → docs/superpowers/plans/
+       ↓
+<span class="hl">Execution handoff</span> (subagent-driven or inline)`,
+  flowchartCN: `<span class="cmt">范围检查：涉及多个子系统？</span> → 建议拆分为独立计划
+       ↓
+<span class="cmt">映射文件结构</span>（分解决策）
+       ↓
+<span class="cmt">定义任务</span>（2-5 分钟步骤、TDD、完整代码）
+       ↓
+<span class="cmt">自审：</span>
+  <span class="num">1.</span> 规格覆盖率（每个需求 → 都有对应任务？）
+  <span class="num">2.</span> 占位符扫描（红旗模式检测）
+  <span class="num">3.</span> 类型一致性（命名在任务间保持一致）
+       ↓
+<span class="cmt">保存计划</span> → docs/superpowers/plans/
+       ↓
+<span class="hl">执行交接</span>（子代理驱动或内联执行）`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 通过\"No Placeholders\"规则的绝对性体现：\"These are plan failures — never write them\" 使用了判决式语言。\"Don't keep it as 'reference'\" 等具体禁止项消除了合理化空间。<strong>Commitment</strong> 通过开头声明（\"I'm using the writing-plans skill\"）和结构化的计划头模板实现。计划中的 checkbox 语法（<code>- [ ]</code>）为执行者提供了可见的进度追踪。",
+  defenseAnalysis: "<span class='badge l1'>L1 锁定</span>：开头声明 + 计划头模板的 REQUIRED SUB-SKILL 标记<br><span class='badge l2'>L2 反合理化</span>：No Placeholders 规则封堵所有偷懒路径<br><span class='badge l3'>L3 顺序门控</span>：Scope → File Structure → Tasks → Self-Review → Save → Handoff<br><span class='badge l4'>L4 证据验证</span>：Self-review 的三项检查（spec coverage, placeholder scan, type consistency）",
+  reusablePatterns: ["Commitment Announce","Sequential Gating","Iron Law","Gate Function"],
+  excerpts: [
+    { title: "No Placeholders Rule", titleCN: "无占位符规则", source: "skills/writing-plans/SKILL.md:107-114", code: `Every step must contain the actual content an engineer needs.
+<span class="hl">These are plan failures — never write them:</span>
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation"
+- "Write tests for the above" (without actual test code)
+- "Similar to Task N" (repeat the code)
+- Steps that describe what to do without showing how`,
+      translation: `每个步骤必须包含工程师需要的实际内容。
+<span class="hl">以下都是计划失败 — 永远不要这样写：</span>
+- "TBD"、"TODO"、"稍后实现"、"填写细节"
+- "添加适当的错误处理" / "添加验证"
+- "为上述内容编写测试"（没有实际测试代码）
+- "类似于任务 N"（重复代码）
+- 只描述做什么却不展示怎么做的步骤` },
+    { title: "Plan Header Template", titleCN: "计划头部模板", source: "skills/writing-plans/SKILL.md:49-61", code: `<span class="hl">&gt; **For agentic workers:** REQUIRED SUB-SKILL:
+Use superpowers:subagent-driven-development</span>
+
+**Goal:** [One sentence describing what this builds]
+**Architecture:** [2-3 sentences about approach]
+**Tech Stack:** [Key technologies/libraries]`,
+      translation: `<span class="hl">&gt; **对于代理工作者：** 必需的子技能：
+使用 superpowers:subagent-driven-development</span>
+
+**目标：** [一句话描述这个计划构建什么]
+**架构：** [2-3 句话描述方法]
+**技术栈：** [关键技术/库]` },
+    { title: "Zero-Context Assumption", titleCN: "零上下文假设", source: "skills/writing-plans/SKILL.md:10-12", code: `<span class="hl">Write comprehensive implementation plans assuming the
+engineer has zero context for our codebase and
+questionable taste.</span>
+
+Assume they are a skilled developer, but know almost
+nothing about our toolset or problem domain.`,
+      translation: `<span class="hl">编写全面的实现计划，假设工程师
+对我们的代码库零上下文且品味堪忧。</span>
+
+假设他们是熟练的开发者，但几乎不了解
+我们的工具集或问题领域。` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5. systematic-debugging
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "systematic-debugging",
+  num: "05",
+  name: "systematic-debugging",
+  nameCN: "系统化调试",
+  type: "纪律执行型",
+  layers: ["l1","l2","l3","l4"],
+  principlesUsed: ["Authority","Social Proof","Scarcity"],
+  principlesAvoided: [],
+  designGoal: "消除代理在调试时的\"猜测-修复\"循环。核心问题是代理（和人类一样）在看到 bug 症状时倾向于立即提出修复方案，而不是先找到根本原因。这个 Skill 强制执行科学方法：观察→假设→实验→结论。",
+  keyDecisions: [
+    { q: "为什么阈值是 3 次修复失败（不是 5 或 2）?", a: "3 是基于经验数据的平衡点。1-2 次失败可能是正常的假设错误；3 次失败形成一个 pattern，表明问题不在于单个假设错误而在于对系统的根本性误解。'3+ failures = architectural problem' 是一个从调试会话中提炼的具体信号。" },
+    { q: "为什么 'violating the letter is violating the spirit'?", a: "代理特别擅长\"spirit vs letter\"合理化 — \"我知道这个 Skill 说要先调查，但这次情况不同\"。这个前置声明一次性封堵了整个类别的合理化。它不需要枚举所有可能的\"特殊情况\"，因为原则本身就排除了所有例外。" },
+    { q: "为什么 Phase 4 有 3 次失败的退出条件?", a: "无限重试是调试中最昂贵的反模式。3 次失败后强制停止，转向架构讨论，防止\"thrashing\" — 在错误方向上消耗无限时间。这不是放弃，而是升级问题类型（从 bug fix 到 architecture review）。" },
+    { q: "为什么 Phase 1 要求 'multi-component evidence gathering'?", a: "在多组件系统（CI → build → signing）中，假设失败发生在哪一层是最大的错误来源。在每层添加诊断 instrument（log input/output）可以精确定位故障层，避免在整个系统上盲目猜测。" }
+  ],
+  flowchart: `<span class="cmt">Phase 1: Root Cause Investigation</span>
+  Read errors → Reproduce → Check changes
+  → <span class="hl">Gather evidence at EACH component boundary</span>
+  → Trace data flow
+       ↓
+<span class="cmt">Phase 2: Pattern Analysis</span>
+  Find working examples → Compare → Identify differences
+       ↓
+<span class="cmt">Phase 3: Hypothesis and Testing</span>
+  Form single hypothesis → Test minimally
+  → <span class="kw">Confirmed?</span> → no → new hypothesis
+       ↓yes
+<span class="cmt">Phase 4: Implementation</span>
+  Create failing test → Single fix → Verify
+       ↓
+  <span class="kw">Fix doesn't work?</span>
+    → <span class="num">&lt;3</span>: Return to Phase 1
+    → <span class="hl">&ge;3: STOP → Question architecture</span>`,
+  flowchartCN: `<span class="cmt">阶段 1：根因调查</span>
+  阅读错误 → 复现 → 检查变更
+  → <span class="hl">在每个组件边界收集证据</span>
+  → 追踪数据流
+       ↓
+<span class="cmt">阶段 2：模式分析</span>
+  找到正常工作的示例 → 对比 → 识别差异
+       ↓
+<span class="cmt">阶段 3：假设与测试</span>
+  形成单一假设 → 最小化测试
+  → <span class="kw">确认？</span> → 否 → 新假设
+       ↓是
+<span class="cmt">阶段 4：实现修复</span>
+  创建失败测试 → 单一修复 → 验证
+       ↓
+  <span class="kw">修复无效？</span>
+    → <span class="num">&lt;3 次</span>：回到阶段 1
+    → <span class="hl">&ge;3 次：停下来 → 质疑架构</span>`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 通过 Iron Law（\"NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST\"）和祈使句流程实现。<strong>Social Proof</strong> 出现在 Red Flags 中：\"Proposing solutions before tracing data flow\" 和 \"One more fix attempt (when already tried 2+)\" 被标记为普遍的反模式，而非个人弱点。<strong>Scarcity</strong> 通过 3 次失败阈值制造紧迫感 — 不是\"建议考虑\"，而是\"3 次后必须停止\"。\"your human partner's Signals\" 段落是一个独特的社会信号 — 它告诉代理注意人类的特定反馈模式作为调试过程出错的指示器。",
+  defenseAnalysis: "<span class='badge l1'>L1 锁定</span>：Iron Law + spirit-over-letter 声明<br><span class='badge l2'>L2 反合理化</span>：8 项 Common Rationalizations + 12 项 Red Flags<br><span class='badge l3'>L3 顺序门控</span>：Phase 1→2→3→4 强制顺序，每阶段有完成标准<br><span class='badge l4'>L4 证据验证</span>：每个 Phase 要求可观察证据（error output, test result, hypothesis test）",
+  reusablePatterns: ["Iron Law","Anti-Rationalization Table","Red Flags","Sequential Gating","Gate Function","When/Then Trigger"],
+  excerpts: [
+    { title: "Iron Law + Spirit-Over-Letter", titleCN: "铁律 + 精神重于字面", source: "skills/systematic-debugging/SKILL.md:13-21", code: `<span class="hl">Core principle:</span> ALWAYS find root cause before
+attempting fixes. Symptom fixes are failure.
+
+<span class="hl">Violating the letter of this process is violating
+the spirit of this process.</span>
+
+<span class="hl">NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST</span>
+
+If you haven't completed Phase 1, you cannot propose fixes.`,
+      translation: `<span class="hl">核心原则：</span>始终先找到根本原因再尝试修复。
+修复症状就是失败。
+
+<span class="hl">违反这个流程的字面规定就是违反它的精神。</span>
+
+<span class="hl">没有先完成根因调查，就不能提出修复方案。</span>
+
+如果你没有完成阶段 1，就不能提出任何修复建议。` },
+    { title: "3-Failure Escalation Rule", titleCN: "3 次失败升级规则", source: "skills/systematic-debugging/SKILL.md:192-211", code: `If fix doesn't work:
+  STOP
+  Count: How many fixes have you tried?
+  If < 3: Return to Phase 1, re-analyze
+  <span class="hl">If ≥ 3: STOP and question the architecture</span>
+  DON'T attempt Fix #4 without architectural discussion
+
+<span class="hl">Pattern indicating architectural problem:</span>
+- Each fix reveals new shared state/coupling
+- Fixes require "massive refactoring"
+- Each fix creates new symptoms elsewhere
+
+This is NOT a failed hypothesis -
+<span class="hl">this is a wrong architecture.</span>`,
+      translation: `如果修复无效：
+  停下来
+  计数：你已经尝试了多少次修复？
+  如果 < 3 次：回到阶段 1，重新分析
+  <span class="hl">如果 ≥ 3 次：停下来，质疑架构</span>
+  不要在没有架构讨论的情况下尝试第 4 次修复
+
+<span class="hl">表明架构问题的模式：</span>
+- 每次修复都暴露出新的共享状态/耦合
+- 修复需要"大规模重构"
+- 每次修复都在其他地方产生新症状
+
+这不是假设失败 —
+<span class="hl">这是架构错误。</span>` },
+    { title: "Multi-Component Evidence Gathering", titleCN: "多组件证据收集", source: "skills/systematic-debugging/SKILL.md:74-86", code: `<span class="cmt">WHEN system has multiple components:</span>
+
+<span class="hl">BEFORE proposing fixes, add diagnostic instrumentation:</span>
+  For EACH component boundary:
+    - Log what data enters component
+    - Log what data exits component
+    - Verify environment/config propagation
+    - Check state at each layer
+
+  Run once to gather evidence showing WHERE it breaks
+  THEN analyze evidence to identify failing component`,
+      translation: `<span class="cmt">当系统有多个组件时：</span>
+
+<span class="hl">在提出修复之前，添加诊断工具：</span>
+  对每个组件边界：
+    - 记录进入组件的数据
+    - 记录离开组件的数据
+    - 验证环境/配置的传播
+    - 检查每层的状态
+
+  运行一次以收集显示故障位置的证据
+  然后分析证据以定位失败的组件` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. verification-before-completion
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "verification-before-completion",
+  num: "06",
+  name: "verification-before-completion",
+  nameCN: "完成前验证",
+  type: "纪律执行型",
+  layers: ["l1","l2","l3","l4"],
+  principlesUsed: ["Authority","Social Proof"],
+  principlesAvoided: [],
+  designGoal: "消除代理在声称工作完成时的\"虚假完成\"问题。核心洞察：代理倾向于表达满意（\"Great!\"、\"Done!\"、\"Perfect!\"）而不是运行实际验证。这不是代理在\"撒谎\" — 而是默认行为模式中缺乏\"先验证再声称\"的约束。",
+  keyDecisions: [
+    { q: "为什么 'evidence before claims, always'?", a: "这是核心行为翻转：将默认流程从 \"claim → maybe verify\" 翻转为 \"verify → then claim\"。'always' 消除了 'just this once' 的合理化。'evidence before claims' 的措辞比 'verify before completing' 更精确 — 它强调的是声明和证据的时序关系。" },
+    { q: "为什么 Gate Function 有 5 步而不是 3 步?", a: "5 步（IDENTIFY → RUN → READ → VERIFY → ONLY THEN）中的每一步封堵一个特定的合理化路径：IDENTIFY 防止 'wrong command'；RUN 防止 'I'll run it later'；READ 防止 'ran it but didn't check output'；VERIFY 防止 'checked but it failed'；ONLY THEN 防止 'verified but claimed before verifying'。" },
+    { q: "为什么说 'Skip any step = lying, not verifying'?", a: "使用强烈的道德语言（'lying'）而非温和的技术语言（'incomplete'）。这是 Authority 原则的极端形式 — 它将跳过步骤从技术疏忽升级为道德失败，显著提高了遵守率。" },
+    { q: "为什么 Common Failures 表格映射 claim→requirement?", a: "表格结构让代理能快速查找：\"我要声称 X，我需要什么证据?\" 每行明确说明了什么是充分证据（\"Test command output: 0 failures\"）什么不是（\"Previous run, 'should pass'\"）。消除了对\"充分验证\"的模糊理解。" }
+  ],
+  flowchart: `<span class="cmt">About to claim completion / express satisfaction?</span>
+       ↓
+<span class="hl">THE GATE FUNCTION:</span>
+  <span class="num">1.</span> IDENTIFY: What command proves this claim?
+  <span class="num">2.</span> RUN: Execute the FULL command (fresh, complete)
+  <span class="num">3.</span> READ: Full output, check exit code, count failures
+  <span class="num">4.</span> VERIFY: Does output confirm the claim?
+       ↓no: State actual status with evidence
+       ↓yes:
+  <span class="num">5.</span> ONLY THEN: Make the claim
+       ↓
+<span class="hl">Skip any step = lying, not verifying</span>`,
+  flowchartCN: `<span class="cmt">即将声称完成 / 表达满意？</span>
+       ↓
+<span class="hl">门控函数：</span>
+  <span class="num">1.</span> 识别：什么命令能证明这个声明？
+  <span class="num">2.</span> 运行：执行完整的命令（全新、完整）
+  <span class="num">3.</span> 阅读：完整输出，检查退出码，统计失败数
+  <span class="num">4.</span> 验证：输出是否确认了声明？
+       ↓否：附带证据说明实际状态
+       ↓是：
+  <span class="num">5.</span> 然后才能：做出声明
+       ↓
+<span class="hl">跳过任何一步 = 撒谎，不是验证</span>`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 是绝对主导：Iron Law + Gate Function + \"Skip any step = lying\" 三层递进的权威语言。\"Claiming work is complete without verification is dishonesty, not efficiency\" — 将技术行为框架为道德问题。<strong>Social Proof</strong> 出现在 \"Why This Matters\" 段落中的 24 个失败记忆 — 通过列举具体的失败案例建立\"这是普遍问题\"的认知。值得注意的是这个 Skill 不使用 <strong>Commitment</strong> — 因为它不是流程型 Skill，而是\"时刻警醒型\" Skill。它不需要 TodoWrite checklist，而是需要在每个声明性动作前触发 Gate Function。",
+  defenseAnalysis: "<span class='badge l1'>L1 锁定</span>：Iron Law + spirit-over-letter 声明<br><span class='badge l2'>L2 反合理化</span>：8 项 Rationalization Prevention + 9 项 Red Flags<br><span class='badge l3'>L3 顺序门控</span>：Gate Function 的 5 步严格顺序<br><span class='badge l4'>L4 证据验证</span>：整个 Skill 就是 L4 的实现 — 要求在声称前必须运行命令并读取输出",
+  reusablePatterns: ["Iron Law","Gate Function","Anti-Rationalization Table","Red Flags","When/Then Trigger"],
+  excerpts: [
+    { title: "The Gate Function", titleCN: "门控函数", source: "skills/verification-before-completion/SKILL.md:26-38", code: `<span class="hl">BEFORE claiming any status or expressing satisfaction:</span>
+
+<span class="num">1. IDENTIFY:</span> What command proves this claim?
+<span class="num">2. RUN:</span> Execute the FULL command (fresh, complete)
+<span class="num">3. READ:</span> Full output, check exit code, count failures
+<span class="num">4. VERIFY:</span> Does output confirm the claim?
+   - If NO: State actual status with evidence
+   - If YES: State claim WITH evidence
+<span class="num">5. ONLY THEN:</span> Make the claim
+
+<span class="hl">Skip any step = lying, not verifying</span>`,
+      translation: `<span class="hl">在声称任何状态或表达满意之前：</span>
+
+<span class="num">1. 识别：</span>什么命令能证明这个声明？
+<span class="num">2. 运行：</span>执行完整的命令（全新、完整）
+<span class="num">3. 阅读：</span>完整输出，检查退出码，统计失败数
+<span class="num">4. 验证：</span>输出是否确认了声明？
+   - 如果否：附带证据说明实际状态
+   - 如果是：附带证据做出声明
+<span class="num">5. 然后才能：</span>做出声明
+
+<span class="hl">跳过任何一步 = 撒谎，不是验证</span>` },
+    { title: "Common Failures Mapping", titleCN: "常见失败映射", source: "skills/verification-before-completion/SKILL.md:42-50", code: `| <span class="bad">Claim</span>           | <span class="good">Requires</span>                          | <span class="bad">Not Sufficient</span>              |
+|--------------------|-------------------------------------|--------------------------------|
+| Tests pass         | Test command output: 0 failures      | Previous run, "should pass"   |
+| Bug fixed          | Test original symptom: passes       | Code changed, assumed fixed   |
+| Agent completed    | VCS diff shows changes              | Agent reports "success"       |
+| Requirements met   | Line-by-line checklist              | Tests passing                  |`,
+      translation: `| <span class="bad">声明</span>           | <span class="good">需要</span>                          | <span class="bad">不充分</span>                      |
+|--------------------|-------------------------------------|--------------------------------|
+| 测试通过           | 测试命令输出：0 个失败               | 之前运行过，"应该通过"        |
+| Bug 已修复         | 测试原始症状：通过                   | 代码改了，假定修复了          |
+| 代理完成了         | VCS diff 显示有变更                 | 代理报告"成功"                |
+| 需求已满足         | 逐行检查清单                         | 测试通过了                     |` },
+    { title: "Why This Matters: Failure Memories", titleCN: "为什么重要：失败记忆", source: "skills/verification-before-completion/SKILL.md:109-115", code: `<span class="cmt">// From 24 failure memories:</span>
+- your human partner said "I don't believe you" - trust broken
+- Undefined functions shipped - would crash
+- Missing requirements shipped - incomplete features
+- Time wasted on false completion → redirect → rework
+- <span class="hl">Violates: "Honesty is a core value.
+  If you lie, you'll be replaced."</span>`,
+      translation: `<span class="cmt">// 来自 24 条失败记忆：</span>
+- 你的人类伙伴说"我不相信你" — 信任破裂
+- 未定义的函数被发布了 — 会崩溃
+- 缺失的需求被发布了 — 功能不完整
+- 虚假完成浪费了时间 → 重新定向 → 返工
+- <span class="hl">违反了："诚实是核心价值观。
+  如果你撒谎，你会被替换。"</span>` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. test-driven-development
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "test-driven-development",
+  num: "07",
+  name: "test-driven-development",
+  nameCN: "测试驱动开发",
+  type: "纪律执行型",
+  layers: ["l1","l2","l3","l4"],
+  principlesUsed: ["Authority","Social Proof","Commitment"],
+  principlesAvoided: ["Liking"],
+  designGoal: "强制执行严格的 RED-GREEN-REFACTOR 循环。核心问题：代理（和人类开发者一样）在压力下会跳过测试先写代码，然后用\"测试后也能达到同样效果\"来合理化。这个 Skill 用多层次防御确保测试先于实现。",
+  keyDecisions: [
+    { q: "为什么 'Delete means delete' 而不是 'refactor to add tests'?", a: "\"Refactor to add tests\" 本质上就是 tests-after。一旦代码存在，代理会不自觉地\"参考\"它来写测试，导致测试验证的是实现而非需求。Delete 消除了这条路径。这是一个经过基线测试验证的结论 — 保留代码的代理总是最终写出 tests-after 的测试。" },
+    { q: "为什么 'Verify RED' 和 'Verify GREEN' 是独立步骤?", a: "\"Write failing test\" 不等于 \"wrote a test that fails for the right reason\"。测试可能因为 typo 失败（不是 feature missing），或者可能已经通过（测试的是现有行为）。Verify RED 确保测试确实测试了不存在的行为。Verify GREEN 确保代码确实让测试通过且没有破坏其他测试。这两个验证步骤是 TDD 循环正确性的保证。" },
+    { q: "为什么反驳 'tests after achieve same goals' 用了认知科学论证?", a: "这个借口有直觉吸引力（\"最终都有测试，有什么区别?\"）。仅用权威语言反驳不够 — 需要解释为什么顺序重要。\"Tests-after answer 'What does this do?' Tests-first answer 'What should this do?'\" — 这个区分直击核心：测试后写 = 验证实现；测试先写 = 定义需求。" },
+    { q: "为什么 YAGNI 出现在 GREEN 步骤中?", a: "GREEN 阶段是代理最容易 over-engineer 的时候。\"While I'm at it\" 心理在写通过测试的最小代码时特别强烈。Good/Bad 代码对比明确展示了什么是 minimal（retryOperation 的 3 参数版本 vs 3+ options 版本）。" }
+  ],
+  flowchart: `<span class="hl">RED:</span> Write failing test
+       ↓
+<span class="hl">Verify RED:</span> Fails for expected reason? (not typo)
+       ↓yes                ↓wrong failure → fix test
+<span class="hl">GREEN:</span> Write minimal code to pass
+       ↓
+<span class="hl">Verify GREEN:</span> All tests pass? Pristine output?
+       ↓yes         ↓no → fix code
+<span class="hl">REFACTOR:</span> Clean up (keep tests green)
+       ↓
+<span class="hl">Next</span> failing test`,
+  flowchartCN: `<span class="hl">RED：</span> 编写失败测试
+       ↓
+<span class="hl">验证 RED：</span> 因预期原因失败？（不是拼写错误）
+       ↓是                ↓错误原因 → 修复测试
+<span class="hl">GREEN：</span> 编写最小代码使测试通过
+       ↓
+<span class="hl">验证 GREEN：</span> 所有测试通过？输出干净？
+       ↓是         ↓否 → 修复代码
+<span class="hl">REFACTOR：</span> 清理（保持测试绿色）
+       ↓
+<span class="hl">下一个</span>失败测试`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 是绝对核心：Iron Law + \"No exceptions\" + \"Delete means delete\" + \"Period\"。语言强度在整个 Skill 中持续保持在最高级别。<strong>Social Proof</strong> 在多个层面出现：Common Rationalizations 表格中的 10 项都是\"每一个开发者都说过\"的借口；\"Manual testing is ad-hoc. You think you tested everything but...\" 暗示这是一个普遍的认知偏差。<strong>Commitment</strong> 通过 Verification Checklist（8 项 checkbox）实现 — 代理必须逐项确认。<strong>Liking</strong> 被明确避免 — persuasion-principles.md 指出 Liking 与纪律执行冲突。",
+  defenseAnalysis: "<span class='badge l1'>L1 锁定</span>：Iron Law + spirit-over-letter + Delete means delete<br><span class='badge l2'>L2 反合理化</span>：10 项 Common Rationalizations + 12 项 Red Flags + \"Why Order Matters\" 的认知科学反驳<br><span class='badge l3'>L3 顺序门控</span>：RED → Verify RED → GREEN → Verify GREEN → REFACTOR 循环<br><span class='badge l4'>L4 证据验证</span>：Verify RED/VERIFY GREEN 步骤要求可观察的命令输出",
+  reusablePatterns: ["Iron Law","Anti-Rationalization Table","Red Flags","Sequential Gating","Gate Function","Clean Baseline"],
+  excerpts: [
+    { title: "Iron Law", titleCN: "铁律", source: "skills/test-driven-development/SKILL.md:33-45", code: `<span class="hl">NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST</span>
+
+Write code before the test? Delete it. Start over.
+
+<span class="hl">No exceptions:</span>
+- Don't keep it as "reference"
+- Don't "adapt" it while writing tests
+- Don't look at it
+- Delete means delete
+
+Implement fresh from tests. Period.`,
+      translation: `<span class="hl">没有失败的测试，就不能写生产代码</span>
+
+先写了代码再补测试？删掉代码，从头来过。
+
+<span class="hl">没有例外：</span>
+- 不要留着当"参考"
+- 不要在写测试的时候"改造"它
+- 不要看它
+- 删除就是彻底删除
+
+完全从测试出发实现代码。就这样。` },
+    { title: "Tests-After Counter-Argument", titleCN: "测试后写反驳论证", source: "skills/test-driven-development/SKILL.md:246-254", code: `<span class="hl">"Tests after achieve the same goals -
+it's spirit not ritual"</span>
+
+<span class="good">No. Tests-after answer "What does this do?"
+Tests-first answer "What should this do?"</span>
+
+Tests-after are biased by your implementation.
+You test what you built, not what's required.
+You verify remembered edge cases, not discovered ones.
+
+Tests-first force edge case discovery before implementing.
+Tests-after verify you remembered everything
+(you didn't).`,
+      translation: `<span class="hl">"之后测试也能达到同样目标 —
+重要的是精神不是仪式"</span>
+
+<span class="good">不对。测试后写回答的是"这段代码在干什么？"
+测试先写回答的是"这段代码应该干什么？"</span>
+
+测试后写会被你的实现所偏差。
+你测试的是你构建的东西，不是需求要求的东西。
+你验证的是你记得的边界情况，不是发现的边界情况。
+
+测试先写强制在实现之前发现边界情况。
+测试后写只能验证你是否记住了所有东西
+（你并没有）。` },
+    { title: "Red Flags", titleCN: "红旗信号", source: "skills/test-driven-development/SKILL.md:272-288", code: `<span class="cmt">## Red Flags - STOP and Start Over</span>
+
+- Code before test
+- Test passes immediately
+- "I already manually tested it"
+- "Tests after achieve the same purpose"
+- "It's about spirit not ritual"
+- "Keep as reference" or "adapt existing code"
+- "Already spent X hours, deleting is wasteful"
+- "TDD is dogmatic, I'm being pragmatic"
+- "This is different because..."
+
+<span class="hl">All of these mean: Delete code. Start over with TDD.</span>`,
+      translation: `<span class="cmt">## 红旗信号 - 停下来，从头来过</span>
+
+- 先写代码后写测试
+- 测试立刻通过
+- "我已经手动测试过了"
+- "之后测试也能达到相同目的"
+- "重要的是精神不是仪式"
+- "留着当参考"或"改造现有代码"
+- "已经花了 X 小时，删掉太浪费"
+- "TDD 太教条了，我这是务实的做法"
+- "这次情况不同因为..."
+
+<span class="hl">以上任何一条都意味着：删除代码。用 TDD 从头来过。</span>` }
+  ]
+},
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. subagent-driven-development
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{
+  id: "subagent-driven-development",
+  num: "08",
+  name: "subagent-driven-development",
+  nameCN: "子代理驱动开发",
+  type: "编排",
+  layers: ["l0","l1","l2","l3","l4"],
+  principlesUsed: ["Authority","Commitment","Social Proof"],
+  principlesAvoided: [],
+  designGoal: "通过将实现计划分解为独立任务，每个任务由全新的子代理执行，并在每个任务后进行两阶段审查（规格合规 + 代码质量），实现高质量、快迭代。这是整个 superpowers 工作流的核心执行引擎。",
+  keyDecisions: [
+    { q: "为什么两阶段审查（先 spec 后 quality）?", a: "顺序至关重要。先检查 spec compliance 确保\"build the right thing\" — 如果代码质量很好但规格不对，所有质量工作都是浪费。只有确认代码满足了规格，才检查代码质量（\"build it right\"）。反过来的顺序会导致审查者在规格不对的代码上浪费时间做质量审查。" },
+    { q: "为什么 'fresh subagent per task' 而不是复用?", a: "复用子代理会带来上下文污染：Task 1 的实现细节影响 Task 2 的决策；Task 2 的 bug 影响对 Task 3 的判断。Fresh subagent = clean slate = 无偏见执行。控制器（主代理）负责跨任务的上下文管理。" },
+    { q: "为什么 spec reviewer 要 'Do Not Trust the Report'?", a: "子代理的报告天然带有乐观偏差 — 它们倾向于高估自己的完成度和质量。'The implementer finished suspiciously quickly' 暗示快速完成可能是遗漏的信号。Spec reviewer 必须独立阅读代码并逐行对比规格，不能依赖报告。" },
+    { q: "为什么不允许并行派发多个实现子代理?", a: "并行实现会导致 git 冲突 — 多个子代理同时修改文件会产生不可预测的合并结果。这是具体的工程约束，不是理论限制。审查可以并行（理论上），但实现必须串行。" },
+    { q: "为什么 implementer 有 4 种状态（DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED）?", a: "二值（done/blocked）不足以捕捉中间状态。DONE_WITH_CONCERNS 让控制器知道\"代码完成了但我有疑虑\" — 这比盲目通过或完全阻塞都更精确。NEEDS_CONTEXT 和 BLOCKED 的区分也很重要：前者是信息缺失（容易修复），后者是能力不足（需要升级模型或拆分任务）。" }
+  ],
+  flowchart: `<span class="cmt">Read plan → Extract all tasks → TodoWrite</span>
+       ↓
+<span class="cmt">FOR EACH TASK:</span>
+  ┌──────────────────────────────────────┐
+  │ <span class="hl">Dispatch implementer subagent</span>              │
+  │   ↓ Questions? → Answer → Re-dispatch  │
+  │   ↓ Implement + Test + Commit          │
+  │   ↓ Self-review                         │
+  │       ↓                                 │
+  │ <span class="hl">Dispatch spec reviewer subagent</span>           │
+  │   ↓ Code matches spec?                  │
+  │   no → Implementer fixes → Re-review    │
+  │   yes ↓                                 │
+  │ <span class="hl">Dispatch code quality reviewer</span>            │
+  │   ↓ Quality OK?                         │
+  │   no → Implementer fixes → Re-review    │
+  │   yes → Mark task complete              │
+  └──────────────────────────────────────┘
+       ↓
+<span class="cmt">After all tasks:</span>
+  Dispatch <span class="hl">final code reviewer</span> for entire implementation
+       ↓
+<span class="hl">Use finishing-a-development-branch</span>`,
+  flowchartCN: `<span class="cmt">读取计划 → 提取所有任务 → TodoWrite</span>
+       ↓
+<span class="cmt">对每个任务：</span>
+  ┌──────────────────────────────────────┐
+  │ <span class="hl">派发实现者子代理</span>                         │
+  │   ↓ 有问题？→ 回答 → 重新派发          │
+  │   ↓ 实现 + 测试 + 提交                 │
+  │   ↓ 自审                               │
+  │       ↓                                 │
+  │ <span class="hl">派发规格审查子代理</span>                     │
+  │   ↓ 代码符合规格？                      │
+  │   否 → 实现者修复 → 重新审查            │
+  │   是 ↓                                 │
+  │ <span class="hl">派发代码质量审查者</span>                    │
+  │   ↓ 质量合格？                          │
+  │   否 → 实现者修复 → 重新审查            │
+  │   是 → 标记任务完成                     │
+  └──────────────────────────────────────┘
+       ↓
+<span class="cmt">所有任务完成后：</span>
+  派发<span class="hl">最终代码审查者</span>审查整体实现
+       ↓
+<span class="hl">使用 finishing-a-development-branch</span>`,
+
+  persuasionAnalysis: "<strong>Authority</strong> 通过多层 Red Flags 实现：\"Never skip reviews\"、\"Accept 'close enough' on spec compliance = not done\"、\"Start code quality review before spec compliance is ✅ (wrong order)\"。每一条都是不可协商的规则。<strong>Commitment</strong> 通过 TodoWrite 实现任务追踪 — 每个任务的状态变更都是公开的承诺。<strong>Social Proof</strong> 出现在 Example Workflow 中 — 展示了具体的、可重复的成功案例作为模板。<strong>Unity</strong> 隐含在控制器-子代理的关系设计中 — 控制器不是命令子代理，而是\"provide full text\"、\"answer questions\"，更像协作关系。",
+  defenseAnalysis: "<span class='badge l0'>L0 注入</span>：通过 writing-plans 的 REQUIRED SUB-SKILL 标记和 description 触发器<br><span class='badge l1'>L1 锁定</span>：Red Flags 中的 12 条 Never 规则 + 两阶段审查的固定顺序<br><span class='badge l2'>L2 反合理化</span>：'close enough' 被明确标记为不可接受；'suspiciously quickly' 对抗乐观偏差<br><span class='badge l3'>L3 顺序门控</span>：implement → spec review → quality review 的严格顺序，review loop 确保修复后重审<br><span class='badge l4'>L4 证据验证</span>：Spec reviewer 独立阅读代码（不信任报告）；Code reviewer 检查 git diff；Final reviewer 审查整体实现",
+  reusablePatterns: ["Zero-Context Handoff","Sequential Gating","Red Flags","When/Then Trigger","Gate Function","Clean Baseline"],
+  excerpts: [
+    { title: "Spec Reviewer: Trust Nothing", titleCN: "规格审查者：什么都不信", source: "skills/subagent-driven-development/spec-reviewer-prompt.md:22-36", code: `<span class="cmt">## CRITICAL: Do Not Trust the Report</span>
+
+The implementer finished suspiciously quickly.
+Their report may be incomplete, inaccurate, or optimistic.
+<span class="hl">You MUST verify everything independently.</span>
+
+DO NOT:
+- Take their word for what they implemented
+- Trust their claims about completeness
+- Accept their interpretation of requirements
+
+DO:
+- <span class="hl">Read the actual code they wrote</span>
+- Compare actual implementation to requirements line by line
+- Check for missing pieces they claimed to implement`,
+      translation: `<span class="cmt">## 关键：不要相信报告</span>
+
+实现者完成得快得可疑。
+他们的报告可能不完整、不准确或过于乐观。
+<span class="hl">你必须独立验证一切。</span>
+
+不要：
+- 相信他们对自己实现了什么的口头说法
+- 信任他们关于完成度的声明
+- 接受他们对需求的解读
+
+要：
+- <span class="hl">阅读他们实际写的代码</span>
+- 逐行对比实际实现与需求
+- 检查他们声称实现了但实际缺失的部分` },
+    { title: "Review Order Constraint", titleCN: "审查顺序约束", source: "skills/subagent-driven-development/SKILL.md:247-248", code: `<span class="cmt">// From Red Flags:</span>
+- <span class="hl">Start code quality review before spec compliance
+  is ✅ (wrong order)</span>
+- Move to next task while either review has open issues`,
+      translation: `<span class="cmt">// 来自红旗信号：</span>
+- <span class="hl">在规格合规性审查通过 ✅ 之前开始代码质量审查（顺序错误）</span>
+- 在任一审查仍有未解决问题时进入下一个任务` },
+    { title: "Implementer Escalation Protocol", titleCN: "实现者升级协议", source: "skills/subagent-driven-development/SKILL.md:106-118", code: `<span class="hl">DONE_WITH_CONCERNS:</span> Completed but has doubts.
+  Read concerns. Address correctness/scope issues
+  before review. Note observations, proceed.
+
+<span class="hl">BLOCKED:</span> Cannot complete. Assess:
+  1. Context problem → provide more, re-dispatch
+  2. More reasoning needed → re-dispatch better model
+  3. Task too large → break into smaller pieces
+  4. Plan wrong → escalate to human
+
+<span class="hl">Never ignore an escalation or force the same model
+to retry without changes.</span>`,
+      translation: `<span class="hl">DONE_WITH_CONCERNS（完成但有疑虑）：</span>完成了但有疑问。
+  阅读疑虑。在审查前解决正确性/范围问题。
+  记录观察结果，继续进行。
+
+<span class="hl">BLOCKED（阻塞）：</span>无法完成。评估：
+  1. 上下文问题 → 提供更多信息，重新派发
+  2. 需要更多推理 → 用更好的模型重新派发
+  3. 任务太大 → 拆分为更小的子任务
+  4. 计划错误 → 升级给人类
+
+<span class="hl">绝不忽略升级请求，或在未做任何修改的情况下
+强制同一模型重试。</span>` },
+    { title: "Zero-Context Handoff Rule", titleCN: "零上下文交接规则", source: "skills/subagent-driven-development/SKILL.md:240-242", code: `- Make subagent read plan file
+  (<span class="hl">provide full text instead</span>)
+- Skip scene-setting context
+  (<span class="hl">subagent needs to understand where task fits</span>)`,
+      translation: `- 让子代理自己去读计划文件
+  （<span class="hl">应该提供完整文本</span>）
+- 跳过场景设定的上下文
+  （<span class="hl">子代理需要理解任务在整个项目中的位置</span>）` }
+  ]
+}
+];
+
+// ============================================================
+// RENDER
+// ============================================================
+
+const tocGrid = document.getElementById('tocGrid');
+const container = document.getElementById('skillsContainer');
+const searchInput = document.getElementById('searchInput');
+
+// TOC
+skills.forEach(s => {
+  const a = document.createElement('a');
+  a.className = 'toc-link';
+  a.href = '#' + s.id;
+  a.dataset.id = s.id;
+  a.innerHTML = `<span class="toc-num">${s.num}</span>${s.name} <span style="color:var(--text-tertiary);font-size:0.78rem;">${s.type}</span>`;
+  a.onclick = e => { e.preventDefault(); document.getElementById(s.id).scrollIntoView({behavior:'smooth',block:'start'}); };
+  tocGrid.appendChild(a);
+});
+
+// Skill cards
+skills.forEach(s => {
+  const layerBadges = s.layers.map(l => `<span class="badge ${l}">${l.toUpperCase()}</span>`).join('');
+  const principleBadges = s.principlesUsed.map(p => `<span class="badge principle">${p}</span>`).join('');
+  const avoidBadges = s.principlesAvoided.map(p => `<span class="badge avoid">No ${p}</span>`).join('');
+  const patternBadges = s.reusablePatterns.map(p => `<span class="badge pattern">${p}</span>`).join('');
+
+  const card = document.createElement('div');
+  card.className = 'skill-card';
+  card.id = s.id;
+  card.dataset.search = `${s.name} ${s.nameCN} ${s.type} ${s.principlesUsed.join(' ')} ${s.reusablePatterns.join(' ')} ${s.designGoal}`.toLowerCase();
+
+  card.innerHTML = `
+    <div class="skill-header" onclick="toggleCard(this)">
+      <div class="skill-title-row">
+        <span class="skill-num">${s.num}</span>
+        <span class="skill-name">${s.name}</span>
+        <span style="color:var(--text-tertiary);font-size:0.8rem;">${s.nameCN}</span>
+        <span style="color:var(--text-tertiary);font-size:0.72rem;opacity:0.6;">${s.type}</span>
+      </div>
+      <div class="skill-badges">${layerBadges}${principleBadges}${avoidBadges}</div>
+      <span class="skill-arrow">&#9660;</span>
+    </div>
+    <div class="skill-body">
+
+      <!-- 设计目标 -->
+      <div class="analysis-section">
+        <div class="section-label accent"><span class="sec-icon">&#9670;</span> 设计目标</div>
+        <div class="analysis-text">${s.designGoal}</div>
+      </div>
+
+      <!-- 核心流程 -->
+      <div class="analysis-section">
+        <div class="section-label"><span class="sec-icon">&#9656;</span> 核心流程</div>
+        <div class="code-block">${s.flowchart}</div>
+        ${s.flowchartCN ? `<div style="margin-top:0.5rem;"><div class="section-label" style="margin-bottom:0.3rem;">中文译文</div><div class="code-block" style="background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.12);">${s.flowchartCN}</div></div>` : ''}
+      </div>
+
+      <!-- 关键设计决策 -->
+      <div class="analysis-section">
+        <div class="section-label accent"><span class="sec-icon">&#9881;</span> 关键设计决策 (${s.keyDecisions.length})</div>
+        ${s.keyDecisions.map((d,i) => `
+          <button class="sub-toggle" onclick="toggleSub(this)">
+            <span class="sub-arrow">&#9654;</span>
+            ${d.q}
+          </button>
+          <div class="sub-content">
+            <div class="decision-callout"><strong>答：</strong> ${d.a}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- 说服原则分析 -->
+      <div class="analysis-section">
+        <div class="section-label"><span class="sec-icon">&#9830;</span> 说服原则分析</div>
+        <div class="tag-row" style="margin-bottom:0.75rem;">
+          ${principleBadges}
+          ${avoidBadges}
+        </div>
+        <div class="analysis-text">${s.persuasionAnalysis}</div>
+      </div>
+
+      <!-- 防御层分析 -->
+      <div class="analysis-section">
+        <div class="section-label accent"><span class="sec-icon">&#9632;</span> 防御层分析</div>
+        <div class="analysis-text">${s.defenseAnalysis}</div>
+      </div>
+
+      <!-- 可复用设计模式 -->
+      <div class="analysis-section">
+        <div class="section-label"><span class="sec-icon">&#9733;</span> 可复用设计模式</div>
+        <div class="tag-row">${patternBadges}</div>
+      </div>
+
+      <!-- 关键源码摘录 -->
+      <div class="analysis-section">
+        <div class="section-label accent"><span class="sec-icon">&#128196;</span> 关键源码摘录 (${s.excerpts.length})</div>
+        ${s.excerpts.map(ex => `
+          <button class="sub-toggle" onclick="toggleSub(this)">
+            <span class="sub-arrow">&#9654;</span>
+            ${ex.titleCN ? ex.titleCN + ' / ' : ''}${ex.title}
+          </button>
+          <div class="sub-content">
+            <div class="code-block">${ex.code}</div>
+            <div class="code-source"><span class="file-ref">${ex.source}</span></div>
+            ${ex.translation ? `<div style="margin-top:0.75rem;"><div class="section-label" style="margin-bottom:0.3rem;">中文译文</div><div class="code-block" style="background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.12);">${ex.translation}</div></div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+
+    </div>
+  `;
+  container.appendChild(card);
+});
+
+function toggleCard(header) { header.parentElement.classList.toggle('open'); }
+function toggleSub(btn) { btn.classList.toggle('open'); }
+function toggleAll(open) {
+  document.querySelectorAll('.skill-card').forEach(c => {
+    open ? c.classList.add('open') : c.classList.remove('open');
+  });
+}
+
+searchInput.addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.skill-card').forEach(card => {
+    card.classList.toggle('hidden', q && !card.dataset.search.includes(q));
+  });
+  document.querySelectorAll('.toc-link').forEach(link => {
+    const card = document.getElementById(link.dataset.id);
+    link.style.opacity = (card && card.classList.contains('hidden')) ? '0.3' : '1';
+  });
+});
+
+// 默认展开第一个卡片
+document.querySelector('.skill-card').classList.add('open');
+</script>
+</body>
+</html>
