@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writing-Plans 技能架构深度拆解</title>
+<style>
+:root{--bg:#08080c;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.06);--text:#ededef;--text-secondary:rgba(255,255,255,0.55);--text-tertiary:rgba(255,255,255,0.3);--accent-1:#f59e0b;--accent-2:#ef4444;--accent-gradient:linear-gradient(135deg,var(--accent-1),var(--accent-2));--green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#22d3ee;--purple:#a78bfa;--font-mono:'SF Mono','Fira Code','JetBrains Mono',monospace;--font-sans:-apple-system,'Inter',system-ui,sans-serif;--radius:12px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse 600px 400px at 12% 8%,rgba(245,158,11,0.06),transparent),radial-gradient(ellipse 500px 500px at 88% 85%,rgba(239,68,68,0.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(255,255,255,0.015),transparent);pointer-events:none;z-index:0}
+.container{max-width:860px;margin:0 auto;padding:0 24px;position:relative;z-index:1}header{padding:80px 0 48px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.badge{display:inline-block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent-1);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);padding:4px 12px;border-radius:100px;margin-bottom:20px;font-weight:600}
+h1{font-size:clamp(28px,5vw,42px);font-weight:700;letter-spacing:-.5px;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px}
+.subtitle{color:var(--text-secondary);font-size:16px;max-width:620px}
+nav.toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:48px}nav.toc summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--accent-1);list-style:none;display:flex;align-items:center;gap:8px}nav.toc summary::-webkit-details-marker{display:none}nav.toc summary::before{content:'▸';transition:transform .2s}nav.toc[open] summary::before{transform:rotate(90deg)}nav.toc ol{margin-top:12px;padding-left:0;list-style:none;display:grid;gap:4px}nav.toc a{color:var(--text-secondary);text-decoration:none;font-size:13px;padding:4px 8px;border-radius:6px;display:block;transition:all .2s}nav.toc a:hover{color:var(--text);background:var(--surface-hover)}nav.toc a .num{color:var(--accent-1);font-weight:600;margin-right:6px}
+.section{margin-bottom:56px}.section-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;cursor:pointer;user-select:none}.section-header .num{font-size:13px;font-weight:700;color:var(--accent-1);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.section-header h2{font-size:22px;font-weight:700;flex:1}.section-header .toggle{color:var(--text-tertiary);font-size:12px;transition:transform .3s cubic-bezier(.4,0,.2,1)}.section.collapsed .section-content{display:none}.section.collapsed .toggle{transform:rotate(-90deg)}
+h3{font-size:17px;font-weight:600;margin:32px 0 12px;color:var(--text);padding-left:12px;border-left:3px solid var(--accent-1)}h4{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--text-secondary)}
+p{color:var(--text-secondary);margin-bottom:12px;font-size:14.5px}strong{color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin:16px 0;backdrop-filter:blur(8px)}.card.accent{border-color:rgba(245,158,11,0.15);background:rgba(245,158,11,0.03)}.card.green{border-color:rgba(52,211,153,0.15);background:rgba(52,211,153,0.03)}.card.red{border-color:rgba(248,113,113,0.15);background:rgba(248,113,113,0.03)}.card.amber{border-color:rgba(251,191,36,0.15);background:rgba(251,191,36,0.03)}.card.purple{border-color:rgba(167,139,250,0.15);background:rgba(167,139,250,0.03)}.card.cyan{border-color:rgba(34,211,238,0.15);background:rgba(34,211,238,0.03)}
+pre{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:12px 0;font-family:var(--font-mono);font-size:13px;line-height:1.6}code{font-family:var(--font-mono);font-size:13px}p code,li code{background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-size:12.5px}
+.kw{color:#c084fc}.fn{color:#60a5fa}.str{color:#34d399}.num{color:#fb923c}.cmt{color:rgba(255,255,255,0.25);font-style:italic}.op{color:#f87171}.tag{color:#f87171}.attr{color:#fbbf24}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}th{text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface)}td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:top}tr:hover td{background:var(--surface-hover)}
+ul,ol{padding-left:20px;margin-bottom:12px}li{color:var(--text-secondary);font-size:14.5px;margin-bottom:6px}li strong{color:var(--text)}
+.checklist{list-style:none;padding-left:0}.checklist li{padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;display:flex;gap:10px;align-items:flex-start;transition:background .2s}.checklist li:hover{background:var(--surface-hover)}.checklist .check{width:18px;height:18px;border:2px solid var(--text-tertiary);border-radius:4px;flex-shrink:0;margin-top:2px}.checklist .check-text{flex:1}.checklist .check-label{font-weight:600;color:var(--text);font-size:13.5px}.checklist .check-desc{font-size:12.5px;color:var(--text-tertiary);margin-top:2px}
+.comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}.compare-item{padding:14px 16px;border-radius:8px;font-size:13px}.compare-item.good{background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.15)}.compare-item.bad{background:rgba(248,113,113,0.05);border:1px solid rgba(248,113,113,0.15)}.compare-item .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px}.compare-item.good .label{color:var(--green)}.compare-item.bad .label{color:var(--red)}
+blockquote{border-left:3px solid var(--accent-1);padding:12px 16px;margin:12px 0;background:rgba(245,158,11,0.03);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);font-size:14px}blockquote strong{font-style:normal}
+.iron-law{text-align:center;font-family:var(--font-mono);font-size:14px;font-weight:700;letter-spacing:1px;padding:20px;background:rgba(248,113,113,0.06);border:2px solid rgba(248,113,113,0.2);border-radius:var(--radius);color:var(--red);margin:20px 0}
+.hard-gate{text-align:center;font-family:var(--font-mono);font-size:13.5px;font-weight:700;padding:18px;background:rgba(248,113,113,0.06);border:2px solid rgba(248,113,113,0.25);border-radius:var(--radius);color:var(--red);margin:20px 0;line-height:1.8}
+.tag-pill{font-size:11px;padding:2px 8px;border-radius:100px;font-weight:500;display:inline-block}.tag-pill.use{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2)}.tag-pill.avoid{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.2)}.tag-pill.moderate{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.2)}
+.flow-step{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;position:relative}.flow-step:not(:last-child)::after{content:'';position:absolute;left:19px;top:40px;bottom:-8px;width:2px;background:var(--border)}.flow-step .step-num{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;z-index:1}.flow-step .step-num.s1{background:rgba(245,158,11,0.15);color:var(--accent-1);border:1px solid rgba(245,158,11,0.3)}.flow-step .step-num.s2{background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3)}.flow-step .step-num.s3{background:rgba(167,139,250,0.15);color:var(--purple);border:1px solid rgba(167,139,250,0.3)}.flow-step .step-num.s4{background:rgba(251,191,36,0.15);color:var(--amber);border:1px solid rgba(251,191,36,0.3)}.flow-step .step-num.s5{background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3)}.flow-step .step-body{flex:1}.flow-step .step-title{font-weight:600;font-size:14.5px;margin-bottom:4px}.flow-step .step-desc{font-size:13px;color:var(--text-secondary)}
+.sub-collapse summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--text);padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px}.sub-collapse summary::-webkit-details-marker{display:none}.sub-collapse summary::before{content:'▸';color:var(--accent-1);transition:transform .2s;font-size:12px}.sub-collapse[open] summary::before{transform:rotate(90deg)}.sub-collapse .sub-content{padding:8px 0 8px 16px;border-left:2px solid var(--border);margin-left:6px}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.arch-diagram{margin:24px 0;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto}
+.arch-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.arch-diagram .diagram-title{text-align:center;font-size:14px;font-weight:600;color:var(--accent-1);margin-bottom:16px;letter-spacing:.5px}
+footer{border-top:1px solid var(--border);padding:32px 0;text-align:center;color:var(--text-tertiary);font-size:12px}
+@media(max-width:640px){.container{padding:0 16px}header{padding:48px 0 32px}.comparison{grid-template-columns:1fr}h1{font-size:26px}pre{font-size:11.5px;padding:12px}td,th{padding:8px 10px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div class="badge">Skill Architecture Deep Dive</div>
+  <h1>Writing-Plans 技能架构深度拆解</h1>
+  <p class="subtitle">从规格文档到可执行实现计划的零上下文交接框架 — 结构、粒度、TDD 强制、自检与双模式执行</p>
+</header>
+
+<nav class="toc" open>
+  <summary>目录导航</summary>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>writing-plans 在 Agentic SDLC 中的位置</a></li>
+    <li><a href="#s2"><span class="num">02</span>Plan Document 结构分析</a></li>
+    <li><a href="#s3"><span class="num">03</span>Task 结构深度拆解</a></li>
+    <li><a href="#s4"><span class="num">04</span>No Placeholders — 零上下文交接原则</a></li>
+    <li><a href="#s5"><span class="num">05</span>File Structure 与 Task 分解的设计决策</a></li>
+    <li><a href="#s6"><span class="num">06</span>Self-Review 机制</a></li>
+    <li><a href="#s7"><span class="num">07</span>Execution Handoff — 双模式执行选择</a></li>
+    <li><a href="#s8"><span class="num">08</span>说服原则与防御层分析</a></li>
+    <li><a href="#s9"><span class="num">09</span>可复用的设计模式提取</a></li>
+  </ol>
+</nav>
+
+<!-- ====== SECTION 1 ====== -->
+<section class="section" id="s1">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">01</span><h2>writing-plans 在 Agentic SDLC 中的位置</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>1.1 技能链全景</h3>
+    <p>writing-plans 是 Superpowers Agentic SDLC（软件开发生命周期）中的<strong>第二个核心技能</strong>。它处于 brainstorming（规格产出）和 subagent-driven-development / executing-plans（代码实现）之间，承担"承上启下"的关键角色。</p>
+
+    <blockquote><strong>Brainstorming 的终端状态是调用 writing-plans。</strong> "The terminal state is invoking writing-plans." — brainstorming 技能明确禁止调用任何其他实现类技能。</blockquote>
+
+    <p>这条技能链的设计遵循一个清晰的"信息递减"原则：每一步都在将隐含知识转化为显式文档，确保下一个环节不需要任何隐含上下文就能工作。</p>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 1：Agentic SDLC 全链路</div>
+      <svg viewBox="0 0 780 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.25)"/></marker>
+          <marker id="faa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f59e0b"/></marker>
+        </defs>
+        <!-- Phase labels -->
+        <text x="30" y="30" fill="rgba(34,211,238,0.4)" font-size="11" font-weight="600">SPEC 阶段</text>
+        <text x="30" y="210" fill="rgba(245,158,11,0.5)" font-size="11" font-weight="600">PLAN 阶段</text>
+        <text x="30" y="390" fill="rgba(52,211,153,0.4)" font-size="11" font-weight="600">CODE 阶段</text>
+        <!-- Phase dividers -->
+        <line x1="20" y1="180" x2="760" y2="180" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="6,4"/>
+        <line x1="20" y1="360" x2="760" y2="360" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="6,4"/>
+        <!-- brainstorming node -->
+        <rect x="140" y="50" width="500" height="110" rx="12" fill="rgba(34,211,238,0.06)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="170" y="76" fill="#22d3ee" font-size="14" font-weight="700">brainstorming</text>
+        <text x="320" y="76" fill="rgba(255,255,255,0.35)" font-size="10">规格化阶段</text>
+        <text x="170" y="98" fill="rgba(255,255,255,0.5)" font-size="11">Input: 用户需求 / 想法 / 模糊请求</text>
+        <text x="170" y="116" fill="rgba(255,255,255,0.5)" font-size="11">Process: 探索 → 收敛 → 设计 → 文档化 → 用户审批</text>
+        <text x="170" y="134" fill="rgba(255,255,255,0.5)" font-size="11">Output: spec 文档 (<code>docs/superpowers/specs/</code>)</text>
+        <text x="170" y="150" fill="rgba(34,211,238,0.4)" font-size="10">Contract: 通过用户审批门的已批准规格</text>
+        <!-- Arrow to writing-plans -->
+        <line x1="390" y1="160" x2="390" y2="225" stroke="#f59e0b" stroke-width="2" marker-end="url(#faa)"/>
+        <text x="405" y="198" fill="#f59e0b" font-size="10" font-weight="600">terminal state</text>
+        <!-- writing-plans node (highlighted) -->
+        <rect x="120" y="228" width="540" height="120" rx="12" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="2"/>
+        <text x="150" y="256" fill="#f59e0b" font-size="14" font-weight="700">writing-plans</text>
+        <text x="300" y="256" fill="rgba(245,158,11,0.6)" font-size="10" font-weight="600">承上启下 · 最高信息损耗交接点</text>
+        <text x="150" y="278" fill="rgba(255,255,255,0.5)" font-size="11">Input: spec 文档 + 项目上下文（worktree 环境）</text>
+        <text x="150" y="296" fill="rgba(255,255,255,0.5)" font-size="11">Process: Scope Check → File Structure → Task 分解 → No Placeholders → Self-Review</text>
+        <text x="150" y="314" fill="rgba(255,255,255,0.5)" font-size="11">Output: plan 文档 (<code>docs/superpowers/plans/</code>)</text>
+        <text x="150" y="338" fill="rgba(245,158,11,0.4)" font-size="10">Contract: 零上下文可执行计划 — 任何 agent 无需额外信息即可执行</text>
+        <!-- Arrow split -->
+        <line x1="300" y1="348" x2="260" y2="395" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <line x1="480" y1="348" x2="520" y2="395" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <text x="340" y="380" fill="rgba(255,255,255,0.3)" font-size="10">recommended</text>
+        <text x="495" y="380" fill="rgba(255,255,255,0.3)" font-size="10">alternative</text>
+        <!-- subagent-driven node -->
+        <rect x="80" y="398" width="360" height="100" rx="12" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="110" y="424" fill="#34d399" font-size="14" font-weight="700">subagent-driven-development</text>
+        <text x="110" y="446" fill="rgba(255,255,255,0.5)" font-size="11">Input: plan 文档</text>
+        <text x="110" y="464" fill="rgba(255,255,255,0.5)" font-size="11">Process: 每个 Task 派发独立 subagent + 双阶段审查</text>
+        <text x="110" y="482" fill="rgba(255,255,255,0.5)" font-size="11">Output: 代码 + 测试 + commits</text>
+        <!-- executing-plans node -->
+        <rect x="460" y="398" width="300" height="100" rx="12" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="480" y="424" fill="#a78bfa" font-size="14" font-weight="700">executing-plans</text>
+        <text x="480" y="446" fill="rgba(255,255,255,0.5)" font-size="11">Input: plan 文档</text>
+        <text x="480" y="464" fill="rgba(255,255,255,0.5)" font-size="11">Process: 批量执行 + checkpoint 审查</text>
+        <text x="480" y="482" fill="rgba(255,255,255,0.5)" font-size="11">Output: 代码 + 测试 + commits</text>
+      </svg>
+    </div>
+
+    <h3>1.2 为什么这是"最高信息损耗交接点"</h3>
+    <p>在整个 Agentic SDLC 中，brainstorming → writing-plans → executing agent 的交接链里，<strong>writing-plans 是信息损耗最大的环节</strong>。原因如下：</p>
+
+    <div class="card accent">
+      <p><strong>信息损耗分析：</strong></p>
+      <ul>
+        <li><strong>Brainstorming → writing-plans：</strong>Planning agent 拥有完整的项目上下文（代码库、设计决策、用户意图）。它能"理解"隐含假设。但 spec 文档只能记录显式信息。</li>
+        <li><strong>writing-plans → executing agent：</strong>执行 agent 是一个<strong>全新的进程</strong>，没有 brainstorming 的对话历史，没有 design 的迭代过程，没有"为什么"的上下文。它只有 plan 文档里的文字。</li>
+        <li><strong>损耗发生在哪里：</strong>Planning agent 在写 plan 时"觉得不用说"的信息（隐含的设计意图、命名惯例、已知约束），执行 agent 完全不知道。</li>
+      </ul>
+    </div>
+
+    <p>这就是为什么 writing-plans 强制执行 <strong>"zero context"</strong> 原则 — <code>assuming the engineer has zero context for our codebase and questionable taste</code>。这不是夸张，这是对信息损耗的现实评估。</p>
+
+    <h3>1.3 上游约束与下游期望</h3>
+    <table>
+      <thead>
+        <tr><th>维度</th><th>上游（brainstorming）</th><th>writing-plans</th><th>下游（subagent-driven / executing）</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>输入产物</strong></td><td>spec 文档（已审批）</td><td>spec + 项目上下文</td><td>plan 文档</td></tr>
+        <tr><td><strong>输出产物</strong></td><td>spec 文档</td><td>plan 文档</td><td>代码 + 测试 + commits</td></tr>
+        <tr><td><strong>质量门控</strong></td><td>用户审批门（2 道）</td><td>Self-Review（3 项检查）</td><td>双阶段审查 / checkpoint</td></tr>
+        <tr><td><strong>上下文需求</strong></td><td>对话历史 + 项目文件</td><td>spec + worktree 环境</td><td>plan 文档（零额外上下文）</td></tr>
+        <tr><td><strong>失败模式</strong></td><td>设计未审批就动手</td><td>plan 有 placeholder</td><td>agent 遇到歧义自行猜测</td></tr>
+      </tbody>
+    </table>
+
+    <div class="card cyan">
+      <p><strong>关键洞察：</strong>writing-plans 的设计目标是<strong>让下游不需要"猜测"</strong>。每一个决策（文件路径、函数签名、测试用例、预期输出）都必须在 plan 中显式记录。这不是"详细"的问题，这是"信息完整性"的问题。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 2 ====== -->
+<section class="section collapsed" id="s2">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">02</span><h2>Plan Document 结构分析</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>2.1 整体层次结构</h3>
+    <p>Plan 文档采用三层嵌套结构：<strong>Header（计划元信息）→ Task（任务单元）→ Step（执行步骤）</strong>。每一层解决不同的问题，缺失任何一层都会导致下游执行失败。</p>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 2：Plan 文档的层次结构</div>
+      <svg viewBox="0 0 780 680" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.2)"/></marker>
+        </defs>
+        <!-- Level 0: Header -->
+        <rect x="60" y="20" width="660" height="140" rx="12" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="90" y="48" fill="#f59e0b" font-size="13" font-weight="700">HEADER — 计划元信息</text>
+        <text x="90" y="68" fill="rgba(255,255,255,0.35)" font-size="10">解决的问题："这个计划要做什么？用什么方法？"</text>
+        <!-- Goal -->
+        <rect x="90" y="80" width="190" height="64" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <text x="110" y="100" fill="var(--text)" font-size="12" font-weight="600">Goal</text>
+        <text x="110" y="116" fill="rgba(255,255,255,0.4)" font-size="10">一句话描述要构建什么</text>
+        <text x="110" y="130" fill="rgba(248,113,113,0.5)" font-size="9">缺失 → 执行者不知道目标</text>
+        <!-- Architecture -->
+        <rect x="295" y="80" width="190" height="64" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <text x="315" y="100" fill="var(--text)" font-size="12" font-weight="600">Architecture</text>
+        <text x="315" y="116" fill="rgba(255,255,255,0.4)" font-size="10">2-3 句话描述方法</text>
+        <text x="315" y="130" fill="rgba(248,113,113,0.5)" font-size="9">缺失 → 执行者自行设计</text>
+        <!-- Tech Stack -->
+        <rect x="500" y="80" width="200" height="64" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <text x="520" y="100" fill="var(--text)" font-size="12" font-weight="600">Tech Stack</text>
+        <text x="520" y="116" fill="rgba(255,255,255,0.4)" font-size="10">关键技术/库</text>
+        <text x="520" y="130" fill="rgba(248,113,113,0.5)" font-size="9">缺失 → 执行者选错工具</text>
+        <!-- Arrow down -->
+        <line x1="390" y1="160" x2="390" y2="190" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <text x="405" y="180" fill="rgba(255,255,255,0.3)" font-size="10">N 个</text>
+        <!-- Level 1: Tasks -->
+        <rect x="60" y="195" width="660" height="120" rx="12" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="90" y="222" fill="#34d399" font-size="13" font-weight="700">TASK N — 任务单元</text>
+        <text x="90" y="242" fill="rgba(255,255,255,0.35)" font-size="10">解决的问题："这个任务涉及哪些文件？做什么？"</text>
+        <!-- Files list -->
+        <rect x="90" y="254" width="200" height="48" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <text x="110" y="274" fill="var(--text)" font-size="12" font-weight="600">Files</text>
+        <text x="110" y="290" fill="rgba(255,255,255,0.4)" font-size="10">Create / Modify / Test 文件路径</text>
+        <text x="110" y="298" fill="rgba(248,113,113,0.5)" font-size="9">缺失 → 执行者不知道改哪个文件</text>
+        <!-- Steps -->
+        <rect x="310" y="254" width="390" height="48" rx="6" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <text x="330" y="274" fill="var(--text)" font-size="12" font-weight="600">Steps 1-5 (TDD Cycle)</text>
+        <text x="330" y="290" fill="rgba(255,255,255,0.4)" font-size="10">Write test → Verify RED → Write code → Verify GREEN → Commit</text>
+        <!-- Arrow down -->
+        <line x1="390" y1="315" x2="390" y2="345" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Level 2: Steps detail -->
+        <rect x="60" y="350" width="660" height="310" rx="12" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="90" y="378" fill="#a78bfa" font-size="13" font-weight="700">STEP — 执行步骤（每个 Task 5 步 TDD 循环）</text>
+        <text x="90" y="398" fill="rgba(255,255,255,0.35)" font-size="10">解决的问题："具体怎么执行？代码是什么？结果怎么验证？"</text>
+        <!-- Step 1 -->
+        <rect x="90" y="410" width="600" height="40" rx="6" fill="rgba(248,113,113,0.05)" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+        <text x="110" y="434" fill="#f87171" font-size="11" font-weight="600">Step 1: Write the failing test</text>
+        <text x="340" y="434" fill="rgba(255,255,255,0.4)" font-size="10">完整测试代码 + 函数签名 + 预期行为</text>
+        <!-- Step 2 -->
+        <rect x="90" y="458" width="600" height="40" rx="6" fill="rgba(248,113,113,0.05)" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+        <text x="110" y="482" fill="#f87171" font-size="11" font-weight="600">Step 2: Run test to verify it fails</text>
+        <text x="340" y="482" fill="rgba(255,255,255,0.4)" font-size="10">精确命令 + 预期失败输出</text>
+        <!-- Step 3 -->
+        <rect x="90" y="506" width="600" height="40" rx="6" fill="rgba(52,211,153,0.05)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="110" y="530" fill="#34d399" font-size="11" font-weight="600">Step 3: Write minimal implementation</text>
+        <text x="370" y="530" fill="rgba(255,255,255,0.4)" font-size="10">完整实现代码 — 不是伪代码</text>
+        <!-- Step 4 -->
+        <rect x="90" y="554" width="600" height="40" rx="6" fill="rgba(52,211,153,0.05)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="110" y="578" fill="#34d399" font-size="11" font-weight="600">Step 4: Run test to verify it passes</text>
+        <text x="360" y="578" fill="rgba(255,255,255,0.4)" font-size="10">精确命令 + 预期通过输出</text>
+        <!-- Step 5 -->
+        <rect x="90" y="602" width="600" height="40" rx="6" fill="rgba(96,165,250,0.05)" stroke="rgba(96,165,250,0.15)" stroke-width="1"/>
+        <text x="110" y="626" fill="#60a5fa" font-size="11" font-weight="600">Step 5: Commit</text>
+        <text x="240" y="626" fill="rgba(255,255,255,0.4)" font-size="10">精确 git add + git commit 命令</text>
+        <!-- Legend -->
+        <rect x="60" y="660" width="660" height="1" rx="0" fill="rgba(255,255,255,0.04)"/>
+      </svg>
+    </div>
+
+    <h3>2.2 Header 字段深度分析</h3>
+    <h4>REQUIRED SUB-SKILL 声明</h4>
+    <p>Plan 文档的第一行是一个关键的设计决策 — 它不是给人类看的注释，而是给<strong>执行 agent 看的指令</strong>：</p>
+    <pre><code><span class="cmt">&gt; **For agentic workers:** REQUIRED SUB-SKILL: Use</span>
+<span class="cmt">superpowers:subagent-driven-development (recommended)</span>
+<span class="cmt">or superpowers:executing-plans to implement this plan</span>
+<span class="cmt">task-by-task. Steps use checkbox (<span class="tag">- [ ]</span>) syntax for tracking.</span>
+
+<span class="cmt">// 对于 agentic 执行者：必须使用指定的子技能来实现此计划。
+// 步骤使用 checkbox 语法进行跟踪。</span></code></pre>
+    <p>这个设计解决了一个实际问题：<strong>执行 agent（subagent）不知道自己应该用什么方法论来执行 plan</strong>。通过在 plan 文档本身中嵌入执行指令，plan 文档变成了一个"自包含的执行合约"。</p>
+
+    <h4>Goal</h4>
+    <pre><code><span class="str">**Goal:** [One sentence describing what this builds]</span>
+<span class="cmt">目标：[一句话描述这个计划构建什么]</span></code></pre>
+    <p><strong>为什么是一句话：</strong>如果需要超过一句话才能描述目标，说明这个 plan 的范围可能过大，应该拆分成多个 plan。这呼应了 Scope Check 的设计。</p>
+
+    <h4>Architecture</h4>
+    <pre><code><span class="str">**Architecture:** [2-3 sentences about approach]</span>
+<span class="cmt">架构：[2-3 句话描述方法]</span></code></pre>
+    <p><strong>为什么限制 2-3 句：</strong>Architecture 不是设计文档（那是 brainstorming 的产物），而是给执行 agent 的<strong>决策框架</strong>。执行 agent 需要知道"大方向"以便在遇到边界情况时做出正确的判断，但不需要（也不应该）知道所有的设计细节。</p>
+
+    <h4>Tech Stack</h4>
+    <pre><code><span class="str">**Tech Stack:** [Key technologies/libraries]</span>
+<span class="cmt">技术栈：[关键技术/库]</span></code></pre>
+    <p><strong>为什么列出技术栈：</strong>执行 agent 可能在 import 时不知道该用哪个库。例如，项目使用 <code>pytest</code> 还是 <code>unittest</code>，使用 <code>requests</code> 还是 <code>httpx</code> — 这些信息对正确实现至关重要。</p>
+
+    <h3>2.3 Task 的 Files 列表</h3>
+    <pre><code><span class="str">**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`</span>
+
+<span class="cmt">文件列表：
+- 创建：精确文件路径
+- 修改：精确文件路径 + 行号范围
+- 测试：精确测试文件路径</span></code></pre>
+    <div class="card red">
+      <p><strong>为什么必须包含行号：</strong><code>Modify: existing.py:123-145</code> 告诉执行 agent <strong>精确的修改位置</strong>。没有行号，执行 agent 需要自己找到正确的修改位置 — 这对"零上下文"的 agent 来说是一个不必要的障碍和潜在的出错点。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 3 ====== -->
+<section class="section collapsed" id="s3">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">03</span><h2>Task 结构深度拆解</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>3.1 TDD 五步循环</h3>
+    <p>每个 Task 被强制分解为 5 个步骤，对应 TDD 的 Red-Green-Commit 微循环。这不是"建议"，而是<strong>强制结构</strong> — 每个 Task 必须有且仅有这 5 个步骤。</p>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 3：单个 Task 的 TDD 五步循环</div>
+      <svg viewBox="0 0 780 500" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.2)"/></marker>
+          <marker id="fr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f87171"/></marker>
+          <marker id="fg" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#34d399"/></marker>
+          <marker id="fb" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#60a5fa"/></marker>
+        </defs>
+        <!-- Central label -->
+        <text x="390" y="30" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="12" font-weight="600">TDD Micro-Cycle — 每个 Task 的强制结构</text>
+        <!-- Step 1: Write failing test (red) -->
+        <rect x="80" y="60" width="280" height="80" rx="10" fill="rgba(248,113,113,0.06)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="110" y="84" fill="#f87171" font-size="12" font-weight="700">Step 1</text>
+        <text x="110" y="102" fill="rgba(255,255,255,0.6)" font-size="11">Write the failing test</text>
+        <text x="110" y="120" fill="rgba(255,255,255,0.35)" font-size="10">写失败的测试</text>
+        <text x="110" y="134" fill="rgba(255,255,255,0.25)" font-size="9">Input: 行为描述 | Output: 完整测试代码</text>
+        <!-- Arrow 1→2 -->
+        <line x1="360" y1="100" x2="420" y2="100" stroke="#f87171" stroke-width="1.5" marker-end="url(#fr)"/>
+        <!-- Step 2: Verify RED (red) -->
+        <rect x="420" y="60" width="280" height="80" rx="10" fill="rgba(248,113,113,0.06)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="450" y="84" fill="#f87171" font-size="12" font-weight="700">Step 2</text>
+        <text x="450" y="102" fill="rgba(255,255,255,0.6)" font-size="11">Verify RED — Run test</text>
+        <text x="450" y="120" fill="rgba(255,255,255,0.35)" font-size="10">验证测试失败</text>
+        <text x="450" y="134" fill="rgba(255,255,255,0.25)" font-size="9">Input: 运行命令 | Output: 预期失败输出</text>
+        <!-- Arrow 2→3 -->
+        <line x1="560" y1="140" x2="560" y2="190" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <text x="575" y="170" fill="#34d399" font-size="9" font-weight="600">RED ✓</text>
+        <!-- Step 3: Write code (green) -->
+        <rect x="420" y="195" width="280" height="80" rx="10" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="450" y="219" fill="#34d399" font-size="12" font-weight="700">Step 3</text>
+        <text x="450" y="237" fill="rgba(255,255,255,0.6)" font-size="11">Write minimal implementation</text>
+        <text x="450" y="255" fill="rgba(255,255,255,0.35)" font-size="10">写最小实现</text>
+        <text x="450" y="269" fill="rgba(255,255,255,0.25)" font-size="9">Input: 测试需求 | Output: 完整实现代码</text>
+        <!-- Arrow 3→4 -->
+        <line x1="420" y1="235" x2="360" y2="235" stroke="#34d399" stroke-width="1.5" marker-end="url(#fg)"/>
+        <!-- Step 4: Verify GREEN (green) -->
+        <rect x="80" y="195" width="280" height="80" rx="10" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="110" y="219" fill="#34d399" font-size="12" font-weight="700">Step 4</text>
+        <text x="110" y="237" fill="rgba(255,255,255,0.6)" font-size="11">Verify GREEN — Run test</text>
+        <text x="110" y="255" fill="rgba(255,255,255,0.35)" font-size="10">验证测试通过</text>
+        <text x="110" y="269" fill="rgba(255,255,255,0.25)" font-size="9">Input: 运行命令 | Output: 预期通过输出</text>
+        <!-- Arrow 4→5 -->
+        <line x1="220" y1="275" x2="220" y2="325" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <text x="235" y="305" fill="#60a5fa" font-size="9" font-weight="600">GREEN ✓</text>
+        <!-- Step 5: Commit (blue) -->
+        <rect x="80" y="330" width="620" height="80" rx="10" fill="rgba(96,165,250,0.06)" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="110" y="354" fill="#60a5fa" font-size="12" font-weight="700">Step 5</text>
+        <text x="110" y="372" fill="rgba(255,255,255,0.6)" font-size="11">Commit — git add + git commit</text>
+        <text x="110" y="390" fill="rgba(255,255,255,0.35)" font-size="10">提交代码</text>
+        <text x="110" y="404" fill="rgba(255,255,255,0.25)" font-size="9">Input: 文件列表 | Output: 精确的 git 命令</text>
+        <!-- Consequences box -->
+        <rect x="80" y="430" width="620" height="56" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="100" y="452" fill="rgba(248,113,113,0.6)" font-size="11" font-weight="600">跳过 Verify RED →</text>
+        <text x="260" y="452" fill="rgba(255,255,255,0.35)" font-size="10">可能写出通过但无意义的测试（测试现有行为而非期望行为）</text>
+        <text x="100" y="474" fill="rgba(248,113,113,0.6)" font-size="11" font-weight="600">跳过 Verify GREEN →</text>
+        <text x="272" y="474" fill="rgba(255,255,255,0.35)" font-size="10">可能引入回归 bug 而不自知（实现代码有错误但未被发现）</text>
+      </svg>
+    </div>
+
+    <h3>3.2 为什么每个 Step 只做一件事</h3>
+    <p>五步结构的每一步都是<strong>单一原子操作</strong>。这不是随意的设计，而是基于以下观察：</p>
+
+    <div class="card accent">
+      <ul>
+        <li><strong>认知负荷最小化：</strong>执行 agent 的上下文窗口有限。每步只做一件事，减少 agent 在单步中出错的可能。</li>
+        <li><strong>失败隔离：</strong>如果某一步失败，可以精确定位问题。Step 1 失败 = 测试设计有问题；Step 2 失败 = 测试逻辑有误；Step 3 失败 = 实现有 bug；Step 4 失败 = 实现不完整。</li>
+        <li><strong>进度可追踪：</strong>5 步对应 5 个 checkbox，执行进度一目了然。</li>
+        <li><strong>2-5 分钟粒度：</strong>"Each step is one action (2-5 minutes)" — 这个时间窗口确保每步足够小以至于不容易出错，但又足够大以至于有实质产出。</li>
+      </ul>
+    </div>
+
+    <h3>3.3 为什么 Verify RED 和 Verify GREEN 不能跳过</h3>
+    <p>这是 writing-plans 中最容易被"优化掉"的两个步骤。技能通过 TDD 子技能的铁律来阻止跳过：</p>
+
+    <div class="iron-law">NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST<br>没有失败测试就没有生产代码</div>
+
+    <p>具体原因：</p>
+
+    <div class="comparison">
+      <div class="compare-item bad">
+        <div class="label">跳过 Verify RED</div>
+        <p>测试可能通过了 — 但不是因为实现正确，而是因为<strong>测试本身在测试已有行为</strong>（而非期望行为）。你没有证明"测试能捕获 bug"，你只是证明"测试能通过"。</p>
+        <p>TDD 子技能的原话："If you didn't watch the test fail, you don't know if it tests the right thing."</p>
+      </div>
+      <div class="compare-item bad">
+        <div class="label">跳过 Verify GREEN</div>
+        <p>实现可能没有让测试通过 — 引入了新的 bug。如果没有验证，你不知道自己写的东西是否真的工作了。回归可能在你到达下一个 Task 时才被发现，那时候调试成本已经增加了。</p>
+      </div>
+    </div>
+
+    <h3>3.4 为什么代码块必须是完整代码，不是伪代码</h3>
+    <pre><code><span class="str">Steps that describe what to do without showing how
+(code blocks required for code steps) — plan failure</span>
+<span class="cmt">只描述做什么但不展示怎么做的步骤——计划失败</span></code></pre>
+    <p>执行 agent 是"zero context"的。如果你写 "Add a function that validates email"，执行 agent 需要自己决定：</p>
+    <ul>
+      <li>函数叫什么名字？</li>
+      <li>参数类型是什么？</li>
+      <li>返回值是什么？</li>
+      <li>验证规则是什么？</li>
+      <li>错误时抛异常还是返回 None？</li>
+    </ul>
+    <p>每一个"自己决定"都是一个<strong>潜在的偏差点</strong>。plan 的目标就是消除这些偏差点。</p>
+
+    <h3>3.5 为什么命令必须包含预期输出</h3>
+    <pre><code><span class="str">- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"</span>
+
+<span class="cmt">运行：精确命令
+预期：失败并显示 "function not defined"</span></code></pre>
+    <p>"Expected output" 不是一个可选的装饰 — 它是<strong>执行 agent 的验证标准</strong>。没有预期输出，执行 agent 不知道：</p>
+    <ul>
+      <li>失败是否是"正确的失败"（fail for the right reason）</li>
+      <li>通过是否是"完全通过"（all tests passing, no warnings）</li>
+      <li>输出中是否有不应该出现的 warning 或 error</li>
+    </ul>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 4 ====== -->
+<section class="section collapsed" id="s4">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">04</span><h2>No Placeholders — 零上下文交接原则</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>4.1 核心原则</h3>
+    <p>writing-plans 中最具防御性的设计就是 <strong>No Placeholders</strong> 规则。技能明确列出了 6 种"plan failures" — 不是"bad practices"，而是<strong>失败</strong>：</p>
+
+    <pre><code><span class="str">Every step must contain the actual content an engineer needs.
+These are **plan failures** — never write them:</span>
+<span class="cmt">每个步骤必须包含工程师需要的实际内容。
+这些是**计划失败**——永远不要写它们：</span></code></pre>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 4：零上下文交接 vs 有上下文交接</div>
+      <svg viewBox="0 0 780 480" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.2)"/></marker>
+          <marker id="fbad" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f87171"/></marker>
+          <marker id="fgood" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#34d399"/></marker>
+        </defs>
+        <!-- WRONG side -->
+        <text x="190" y="24" text-anchor="middle" fill="#f87171" font-size="13" font-weight="700">有上下文交接（错误）</text>
+        <!-- Planning agent -->
+        <rect x="40" y="40" width="300" height="50" rx="8" fill="rgba(248,113,113,0.06)" stroke="#f87171" stroke-width="1"/>
+        <text x="60" y="62" fill="#f87171" font-size="11" font-weight="600">Planning Agent</text>
+        <text x="60" y="78" fill="rgba(255,255,255,0.4)" font-size="10">拥有完整上下文 + 隐含知识</text>
+        <!-- Arrow -->
+        <line x1="190" y1="90" x2="190" y2="130" stroke="#f87171" stroke-width="1.5" marker-end="url(#fbad)"/>
+        <text x="210" y="115" fill="#f87171" font-size="9" font-weight="600">vague plan</text>
+        <!-- Vague plan -->
+        <rect x="40" y="135" width="300" height="50" rx="8" fill="rgba(248,113,113,0.03)" stroke="rgba(248,113,113,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="60" y="157" fill="rgba(248,113,113,0.7)" font-size="11" font-style="italic">"Add appropriate error handling"</text>
+        <text x="60" y="173" fill="rgba(255,255,255,0.3)" font-size="10">模糊描述 — 依赖执行者自行补充</text>
+        <!-- Arrow -->
+        <line x1="190" y1="185" x2="190" y2="225" stroke="#f87171" stroke-width="1.5" marker-end="url(#fbad)"/>
+        <!-- Executing agent -->
+        <rect x="40" y="230" width="300" height="50" rx="8" fill="rgba(248,113,113,0.06)" stroke="#f87171" stroke-width="1"/>
+        <text x="60" y="252" fill="#f87171" font-size="11" font-weight="600">Executing Agent（零上下文）</text>
+        <text x="60" y="268" fill="rgba(255,255,255,0.4)" font-size="10">必须猜测 "appropriate" 是什么意思</text>
+        <!-- Arrow -->
+        <line x1="190" y1="280" x2="190" y2="320" stroke="#f87171" stroke-width="1.5" marker-end="url(#fbad)"/>
+        <!-- Output deviation -->
+        <rect x="40" y="325" width="300" height="50" rx="8" fill="rgba(248,113,113,0.08)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="60" y="347" fill="#f87171" font-size="11" font-weight="600">输出偏差</text>
+        <text x="60" y="363" fill="rgba(255,255,255,0.4)" font-size="10">实现的错误处理与设计意图不一致</text>
+        <!-- Divider -->
+        <line x1="390" y1="30" x2="390" y2="460" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4,3"/>
+        <!-- CORRECT side -->
+        <text x="585" y="24" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">零上下文交接（正确）</text>
+        <!-- Planning agent -->
+        <rect x="430" y="40" width="310" height="50" rx="8" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1"/>
+        <text x="450" y="62" fill="#34d399" font-size="11" font-weight="600">Planning Agent</text>
+        <text x="450" y="78" fill="rgba(255,255,255,0.4)" font-size="10">拥有完整上下文 + 隐含知识</text>
+        <!-- Arrow -->
+        <line x1="585" y1="90" x2="585" y2="130" stroke="#34d399" stroke-width="1.5" marker-end="url(#fgood)"/>
+        <text x="605" y="115" fill="#34d399" font-size="9" font-weight="600">complete plan</text>
+        <!-- Complete plan -->
+        <rect x="430" y="135" width="310" height="50" rx="8" fill="rgba(52,211,153,0.03)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="450" y="152" fill="rgba(52,211,153,0.7)" font-size="10" font-style="italic">完整代码 + 精确命令 + 预期输出</text>
+        <text x="450" y="170" fill="rgba(255,255,255,0.4)" font-size="10">零歧义 — 不需要任何隐含知识</text>
+        <!-- Arrow -->
+        <line x1="585" y1="185" x2="585" y2="225" stroke="#34d399" stroke-width="1.5" marker-end="url(#fgood)"/>
+        <!-- Executing agent -->
+        <rect x="430" y="230" width="310" height="50" rx="8" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1"/>
+        <text x="450" y="252" fill="#34d399" font-size="11" font-weight="600">Executing Agent（零上下文）</text>
+        <text x="450" y="268" fill="rgba(255,255,255,0.4)" font-size="10">直接执行 — 无需猜测或推断</text>
+        <!-- Arrow -->
+        <line x1="585" y1="280" x2="585" y2="320" stroke="#34d399" stroke-width="1.5" marker-end="url(#fgood)"/>
+        <!-- Consistent output -->
+        <rect x="430" y="325" width="310" height="50" rx="8" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="450" y="347" fill="#34d399" font-size="11" font-weight="600">一致输出</text>
+        <text x="450" y="363" fill="rgba(255,255,255,0.4)" font-size="10">实现与设计意图完全一致</text>
+        <!-- Bottom annotation -->
+        <rect x="40" y="400" width="700" height="68" rx="8" fill="rgba(245,158,11,0.04)" stroke="rgba(245,158,11,0.12)" stroke-width="1"/>
+        <text x="60" y="422" fill="#f59e0b" font-size="11" font-weight="600">核心洞察：</text>
+        <text x="60" y="440" fill="rgba(255,255,255,0.45)" font-size="10">Planning agent 拥有的上下文是"消耗品" — 一旦 plan 写完，这些上下文就丢失了。</text>
+        <text x="60" y="456" fill="rgba(255,255,255,0.45)" font-size="10">No Placeholders 的本质是：在上下文丢失之前，将所有关键决策固化为显式文档。</text>
+      </svg>
+    </div>
+
+    <h3>4.2 六种 Plan Failures 详解</h3>
+
+    <table>
+      <thead>
+        <tr><th>类型</th><th>错误示例</th><th>为什么是失败</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>TBD / TODO</strong></td>
+          <td><code>"TBD: implement later"</code></td>
+          <td>执行 agent 不知道 "later" 是什么时候，也不知道要实现什么。Plan 中不应有未完成项。</td>
+        </tr>
+        <tr>
+          <td><strong>模糊指令</strong></td>
+          <td><code>"Add appropriate error handling"</code></td>
+          <td>"appropriate" 对 planning agent 和 executing agent 可能意味着完全不同的东西。</td>
+        </tr>
+        <tr>
+          <td><strong>空测试引用</strong></td>
+          <td><code>"Write tests for the above"</code></td>
+          <td>没有实际测试代码，执行 agent 不知道要测什么、怎么测、期望什么。</td>
+        </tr>
+        <tr>
+          <td><strong>交叉引用</strong></td>
+          <td><code>"Similar to Task 3"</code></td>
+          <td>执行 agent 可能跳着读 Task，或在不同 session 中执行。每个 Task 必须自包含。</td>
+        </tr>
+        <tr>
+          <td><strong>描述代替代码</strong></td>
+          <td><code>"Create a function to parse dates"</code></td>
+          <td>描述了"做什么"但没有"怎么做"。函数签名、参数类型、返回值 — 全部缺失。</td>
+        </tr>
+        <tr>
+          <td><strong>幽灵引用</strong></td>
+          <td><code>调用未在任何 Task 中定义的类型/函数</code></td>
+          <td>执行 agent 无法找到引用的定义，导致编译失败或实现错误。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4.3 为什么 "Similar to Task N" 被禁止</h3>
+    <pre><code><span class="str">"Similar to Task N" (repeat the code — the engineer may
+be reading tasks out of order)</span>
+<span class="cmt">"类似于 Task N"（重复代码——工程师可能不按顺序阅读任务）</span></code></pre>
+    <p>这个禁令背后的原因比表面看到的更深：</p>
+    <ul>
+      <li><strong>Subagent 场景：</strong>subagent-driven-development 为每个 Task 派发一个全新的 subagent。Task 7 的 subagent 无法访问 Task 3 的内容。</li>
+      <li><strong>跳读场景：</strong>执行 agent 可能因为之前的 Task 失败而跳到某个 Task 重新执行。</li>
+      <li><strong>Session 切换场景：</strong>executing-plans 可能在不同的 session 中执行。不同 session 之间不共享上下文。</li>
+    </ul>
+    <div class="card red">
+      <p><strong>设计原则：</strong>"every handoff receiver is a brand new agent"（每个交接接收者都是全新的 agent）。这不是假设，这是实际运行时的现实。</p>
+    </div>
+
+    <h3>4.4 为什么 "Add appropriate error handling" 不够</h3>
+    <p>"appropriate" 是一个主观判断词。对于 planning agent 来说，"appropriate error handling" 可能意味着：</p>
+    <ul>
+      <li>抛出特定类型的异常（如 <code>ValidationError</code>）</li>
+      <li>记录日志并返回默认值</li>
+      <li>向上传播错误让调用者处理</li>
+      <li>显示用户友好的错误消息</li>
+    </ul>
+    <p>对于执行 agent 来说，这四种选择产生的代码完全不同。如果 plan 不明确指定，执行 agent 会基于自己的"判断"来选择 — 这个判断可能与设计意图完全不同。</p>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 5 ====== -->
+<section class="section collapsed" id="s5">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">05</span><h2>File Structure 与 Task 分解的设计决策</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>5.1 从 Spec 到 File Structure 到 Task 的分解路径</h3>
+    <p>writing-plans 的分解过程不是一步到位的。它遵循一个清晰的三层分解路径：<strong>Spec → File Structure → Tasks</strong>。每一层都在上一层的基础上进一步细化。</p>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 5：从 Spec 到 File Structure 到 Task 的分解路径</div>
+      <svg viewBox="0 0 780 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.2)"/></marker>
+          <marker id="faa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f59e0b"/></marker>
+        </defs>
+        <!-- Layer 1: Spec -->
+        <rect x="60" y="20" width="660" height="120" rx="12" fill="rgba(34,211,238,0.06)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="90" y="48" fill="#22d3ee" font-size="13" font-weight="700">LAYER 1: Spec（规格文档）</text>
+        <text x="90" y="68" fill="rgba(255,255,255,0.35)" font-size="10">描述：要构建什么功能、行为是什么、约束是什么</text>
+        <text x="90" y="88" fill="rgba(255,255,255,0.4)" font-size="11">Feature A: 用户认证系统</text>
+        <text x="90" y="106" fill="rgba(255,255,255,0.4)" font-size="11">Feature B: 订单管理</text>
+        <text x="90" y="124" fill="rgba(255,255,255,0.4)" font-size="11">Feature C: 支付集成</text>
+        <!-- Decision: Scope Check -->
+        <polygon points="390,160 440,185 390,210 340,185" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="390" y="188" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">Scope Check</text>
+        <line x1="390" y1="140" x2="390" y2="160" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <text x="445" y="182" fill="rgba(248,113,113,0.5)" font-size="9">独立子系统？→ 拆分 plan</text>
+        <!-- Arrow -->
+        <line x1="390" y1="210" x2="390" y2="235" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Layer 2: File Structure -->
+        <rect x="60" y="240" width="660" height="130" rx="12" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="90" y="268" fill="#fbbf24" font-size="13" font-weight="700">LAYER 2: File Structure（文件结构）</text>
+        <text x="90" y="288" fill="rgba(255,255,255,0.35)" font-size="10">描述：每个文件负责什么、文件之间的关系</text>
+        <rect x="90" y="300" width="150" height="56" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="100" y="318" fill="rgba(255,255,255,0.5)" font-size="10">src/auth/login.py</text>
+        <text x="100" y="332" fill="rgba(255,255,255,0.3)" font-size="9">负责：登录逻辑</text>
+        <text x="100" y="346" fill="rgba(255,255,255,0.3)" font-size="9">按职责拆分</text>
+        <rect x="260" y="300" width="150" height="56" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="270" y="318" fill="rgba(255,255,255,0.5)" font-size="10">src/auth/session.py</text>
+        <text x="270" y="332" fill="rgba(255,255,255,0.3)" font-size="9">负责：会话管理</text>
+        <text x="270" y="346" fill="rgba(255,255,255,0.3)" font-size="9">不是按"models层"</text>
+        <rect x="430" y="300" width="150" height="56" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="440" y="318" fill="rgba(255,255,255,0.5)" font-size="10">tests/test_login.py</text>
+        <text x="440" y="332" fill="rgba(255,255,255,0.3)" font-size="9">负责：登录测试</text>
+        <text x="440" y="346" fill="rgba(255,255,255,0.3)" font-size="9">与实现文件对应</text>
+        <rect x="600" y="300" width="100" height="56" rx="4" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="610" y="318" fill="rgba(255,255,255,0.5)" font-size="10">...</text>
+        <!-- Arrow -->
+        <line x1="390" y1="370" x2="390" y2="395" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Layer 3: Tasks -->
+        <rect x="60" y="400" width="660" height="100" rx="12" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="90" y="428" fill="#34d399" font-size="13" font-weight="700">LAYER 3: Tasks（执行任务）</text>
+        <text x="90" y="448" fill="rgba(255,255,255,0.35)" font-size="10">描述：每个 Task 对应一个文件的变更，包含 5 步 TDD 循环</text>
+        <rect x="90" y="458" width="130" height="30" rx="4" fill="rgba(52,211,153,0.04)" stroke="rgba(52,211,153,0.1)" stroke-width="1"/>
+        <text x="100" y="478" fill="rgba(255,255,255,0.5)" font-size="10">Task 1: login.py</text>
+        <rect x="230" y="458" width="130" height="30" rx="4" fill="rgba(52,211,153,0.04)" stroke="rgba(52,211,153,0.1)" stroke-width="1"/>
+        <text x="240" y="478" fill="rgba(255,255,255,0.5)" font-size="10">Task 2: session.py</text>
+        <rect x="370" y="458" width="130" height="30" rx="4" fill="rgba(52,211,153,0.04)" stroke="rgba(52,211,153,0.1)" stroke-width="1"/>
+        <text x="380" y="478" fill="rgba(255,255,255,0.5)" font-size="10">Task 3: test_login</text>
+        <rect x="510" y="458" width="130" height="30" rx="4" fill="rgba(52,211,153,0.04)" stroke="rgba(52,211,153,0.1)" stroke-width="1"/>
+        <text x="520" y="478" fill="rgba(255,255,255,0.5)" font-size="10">Task 4: test_session</text>
+        <!-- Key decision annotations -->
+        <rect x="60" y="510" width="660" height="1" fill="rgba(255,255,255,0.04)"/>
+      </svg>
+    </div>
+
+    <h3>5.2 "Files that change together should live together"</h3>
+    <pre><code><span class="str">Files that change together should live together.
+Split by responsibility, not by technical layer.</span>
+<span class="cmt">一起变更的文件应该放在一起。
+按职责拆分，而不是按技术层拆分。</span></code></pre>
+    <p>这是一个反直觉的设计决策。传统的分层架构（controllers、services、models、views）将文件按技术角色组织。但 writing-plans 推荐的是<strong>按职责组织</strong>：</p>
+
+    <div class="comparison">
+      <div class="compare-item bad">
+        <div class="label">按技术层拆分</div>
+        <pre><code>src/
+  models/user.py
+  services/auth.py
+  controllers/login.py
+  views/login_view.py</code></pre>
+        <p>改一个登录功能要改 4 个目录下的文件。</p>
+      </div>
+      <div class="compare-item good">
+        <div class="label">按职责拆分</div>
+        <pre><code>src/auth/
+  user.py
+  service.py
+  login.py
+  login_view.py</code></pre>
+        <p>改登录功能只涉及 <code>src/auth/</code> 目录。</p>
+      </div>
+    </div>
+
+    <p><strong>为什么这对 plan 至关重要：</strong>Task 的粒度与文件的职责范围直接相关。如果文件按技术层拆分，一个 Task 可能需要跨多个目录修改文件，增加了执行复杂度和出错概率。按职责拆分后，每个 Task 更可能只涉及一个目录下的文件。</p>
+
+    <h3>5.3 Scope Check — 何时拆分为多个 Plan</h3>
+    <pre><code><span class="str">If the spec covers multiple independent subsystems, it should
+have been broken into sub-project specs during brainstorming.
+If it wasn't, suggest breaking this into separate plans — one
+per subsystem. Each plan should produce working, testable
+software on its own.</span>
+<span class="cmt">如果 spec 涵盖多个独立子系统，应该被拆分为子项目规格。
+每个 plan 应该产出独立的、可测试的软件。</span></code></pre>
+    <p>Scope Check 的设计意图是<strong>防止 plan 过大导致执行失败</strong>。一个包含 20+ Tasks 的 plan 比 4 个各包含 5 Tasks 的 plan 更容易出问题：</p>
+    <ul>
+      <li><strong>上下文溢出：</strong>Planning agent 在写后面的 Task 时可能已经忘了前面的设计决策</li>
+      <li><strong>Self-Review 效果递减：</strong>检查 20 个 Task 的一致性比检查 5 个 Task 困难得多</li>
+      <li><strong>执行中断风险：</strong>如果 Task 15 失败，可能需要重新审视整个 plan</li>
+      <li><strong>并行性丧失：</strong>大 plan 无法并行执行（虽然 subagent-driven 目前是串行的，但结构上应该允许未来并行）</li>
+    </ul>
+
+    <h3>5.4 为什么 "2-5 分钟" 粒度</h3>
+    <pre><code><span class="str">**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step</span>
+<span class="cmt">每一步是一个动作（2-5 分钟）</span></code></pre>
+    <p>"2-5 minutes" 不是随意选择的时间窗口。它与 LLM 的行为特征直接相关：</p>
+    <div class="card accent">
+      <ul>
+        <li><strong>太短（&lt;2 min）：</strong>步骤过于琐碎（如"打开文件"），增加 plan 长度但不增加价值</li>
+        <li><strong>太长（&gt;5 min）：</strong>步骤过于复杂，执行 agent 在单步中出错概率上升，失败时难以定位</li>
+        <li><strong>2-5 min：</strong>恰好对应"写一个测试函数"或"实现一个小函数"的时间 — 这是一个 agent 可以可靠完成的原子操作</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 6 ====== -->
+<section class="section collapsed" id="s6">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">06</span><h2>Self-Review 机制</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>6.1 三项检查流程</h3>
+    <p>Self-Review 是 writing-plans 的内置质量保证机制。它在 plan 写完之后、交付执行之前运行。值得注意的是，这是一个<strong>自检</strong>机制，不是外部审查。</p>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 6：Self-Review 三项检查流程</div>
+      <svg viewBox="0 0 780 400" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.2)"/></marker>
+          <marker id="fg" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#34d399"/></marker>
+          <marker id="fr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f87171"/></marker>
+        </defs>
+        <!-- Trigger -->
+        <rect x="250" y="15" width="280" height="40" rx="8" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="390" y="40" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="600">Plan 写完 → 触发 Self-Review</text>
+        <line x1="390" y1="55" x2="390" y2="80" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Check 1: Spec coverage -->
+        <rect x="80" y="85" width="620" height="80" rx="10" fill="rgba(34,211,238,0.06)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="110" y="110" fill="#22d3ee" font-size="13" font-weight="700">Check 1: Spec Coverage — 规格覆盖度</text>
+        <text x="110" y="130" fill="rgba(255,255,255,0.5)" font-size="11">"Skim each section/requirement in the spec. Can you point to a task that implements it?"</text>
+        <text x="110" y="150" fill="rgba(255,255,255,0.35)" font-size="10">浏览 spec 的每个章节/需求。你能指向一个实现它的 Task 吗？列出所有遗漏。</text>
+        <!-- Arrow -->
+        <line x1="390" y1="165" x2="390" y2="190" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Check 2: Placeholder scan -->
+        <rect x="80" y="195" width="620" height="80" rx="10" fill="rgba(248,113,113,0.06)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="110" y="220" fill="#f87171" font-size="13" font-weight="700">Check 2: Placeholder Scan — 占位符扫描</text>
+        <text x="110" y="240" fill="rgba(255,255,255,0.5)" font-size="11">"Search your plan for red flags — any of the patterns from the 'No Placeholders' section."</text>
+        <text x="110" y="260" fill="rgba(255,255,255,0.35)" font-size="10">在 plan 中搜索红旗 — No Placeholders 章节中的任何模式。</text>
+        <!-- Arrow -->
+        <line x1="390" y1="275" x2="390" y2="300" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Check 3: Type consistency -->
+        <rect x="80" y="305" width="620" height="80" rx="10" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="110" y="330" fill="#a78bfa" font-size="13" font-weight="700">Check 3: Type Consistency — 类型一致性</text>
+        <text x="110" y="350" fill="rgba(255,255,255,0.5)" font-size="11">"Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks?"</text>
+        <text x="110" y="370" fill="rgba(255,255,255,0.35)" font-size="10">后面 Task 中的类型、方法签名和属性名是否与前面 Task 定义的一致？</text>
+      </svg>
+    </div>
+
+    <h3>6.2 为什么是自检而不是外部审查</h3>
+    <pre><code><span class="str">After writing the complete plan, look at the spec with fresh
+eyes and check the plan against it. This is a checklist you
+run yourself — not a subagent dispatch.</span>
+<span class="cmt">写完完整计划后，用全新的眼光审视 spec 并对照检查。
+这是你自己运行的清单——不是 subagent 调度。</span></code></pre>
+    <p>这个设计选择有几个原因：</p>
+    <ul>
+      <li><strong>速度：</strong>自检比派发 subagent 更快。Planning agent 已经有了完整的上下文，不需要重新加载 spec 和 plan。</li>
+      <li><strong>即时修复：</strong>发现问题后可以立即修复 — "Fix inline. No need to re-review"（内联修复，无需重新审查）。</li>
+      <li><strong>外部审查仍然存在：</strong>plan-document-reviewer-prompt.md 提供了可选的外部审查。Self-Review 是第一道防线，外部审查是第二道。</li>
+    </ul>
+
+    <h3>6.3 Type Consistency — clearLayers() vs clearFullLayers() 的 Bug</h3>
+    <p>Self-Review 中最精妙的检查是 Type Consistency，因为它捕获的是<strong>跨 Task 的一致性错误</strong> — 这类错误在编写 plan 时极难发现，但在执行时会导致编译失败。</p>
+
+    <div class="card red">
+      <p><strong>技能原文的例子：</strong></p>
+      <pre><code><span class="str">A function called `clearLayers()` in Task 3 but
+`clearFullLayers()` in Task 7 is a bug.</span>
+<span class="cmt">Task 3 中叫 `clearLayers()` 但 Task 7 中叫 `clearFullLayers()`
+就是一个 bug。</span></code></pre>
+      <p>这类 bug 的产生机制：</p>
+      <ol>
+        <li>Task 3 定义了一个函数 <code>clearLayers()</code></li>
+        <li>写到 Task 7 时，planning agent "记错了"函数名，写成了 <code>clearFullLayers()</code></li>
+        <li>执行 agent 在 Task 7 调用 <code>clearFullLayers()</code> → 编译/运行失败</li>
+        <li>执行 agent 不知道 Task 3 中定义的是 <code>clearLayers()</code>（因为它是"零上下文"的）</li>
+        <li>执行 agent 卡住 → 需要 human 介入</li>
+      </ol>
+    </div>
+
+    <h3>6.4 "Fix inline. No need to re-review"</h3>
+    <pre><code><span class="str">If you find issues, fix them inline. No need to re-review
+— just fix and move on. If you find a spec requirement
+with no task, add the task.</span>
+<span class="cmt">如果发现问题，内联修复。无需重新审查——直接修复并继续。
+如果发现 spec 需求没有对应的 Task，添加 Task。</span></code></pre>
+    <p>这条规则防止了一个常见的反模式：<strong>过度审查循环</strong>。如果每次修复后都需要重新审查，planning agent 可能会陷入"修复 → 审查 → 发现新问题 → 修复 → 审查"的无限循环。技能明确说"修复后继续前进"，这是对效率的合理权衡。</p>
+
+    <h3>6.5 外部审查 — plan-document-reviewer-prompt.md</h3>
+    <p>除了自检，writing-plans 还提供了可选的外部审查模板：</p>
+    <table>
+      <thead>
+        <tr><th>审查类别</th><th>检查内容</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Completeness</strong></td><td>TODOs、placeholders、不完整的 tasks、缺失的步骤</td></tr>
+        <tr><td><strong>Spec Alignment</strong></td><td>Plan 覆盖 spec 需求，无重大范围蔓延</td></tr>
+        <tr><td><strong>Task Decomposition</strong></td><td>Tasks 有清晰边界，步骤可执行</td></tr>
+        <tr><td><strong>Buildability</strong></td><td>工程师能否在不卡住的情况下遵循此 plan？</td></tr>
+      </tbody>
+    </table>
+    <p>外部审查有一个关键的校准原则：</p>
+    <blockquote><strong>"Only flag issues that would cause real problems during implementation."</strong> 只标记会在实现过程中造成实际问题的内容。一个工程师构建了错误的东西或卡住了，这是问题。措辞、风格偏好和"锦上添花"的建议不是问题。</blockquote>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 7 ====== -->
+<section class="section collapsed" id="s7">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">07</span><h2>Execution Handoff — 双模式执行选择</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>7.1 两种执行模式</h3>
+    <p>Plan 写完后，writing-plans 提供<strong>两种执行模式</strong>供用户选择。这不是"随便选一个" — 每种模式有不同的适用场景和权衡。</p>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 7：两种执行模式的对比</div>
+      <svg viewBox="0 0 780 580" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.2)"/></marker>
+        </defs>
+        <!-- Plan complete -->
+        <rect x="240" y="15" width="300" height="36" rx="8" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="390" y="38" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="600">Plan Complete — 计划完成</text>
+        <!-- Split arrows -->
+        <line x1="320" y1="51" x2="195" y2="90" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <line x1="460" y1="51" x2="585" y2="90" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Mode 1: Inline Execution -->
+        <rect x="40" y="95" width="340" height="460" rx="12" fill="rgba(167,139,250,0.04)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="70" y="122" fill="#a78bfa" font-size="14" font-weight="700">executing-plans</text>
+        <text x="70" y="140" fill="rgba(255,255,255,0.35)" font-size="10">Inline Execution — 内联执行</text>
+        <!-- Properties -->
+        <text x="70" y="170" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">上下文管理</text>
+        <text x="70" y="188" fill="rgba(255,255,255,0.4)" font-size="10">同一 session，共享上下文</text>
+        <text x="70" y="204" fill="rgba(248,113,113,0.5)" font-size="10">风险：上下文污染</text>
+        <line x1="70" y1="214" x2="350" y2="214" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="70" y="234" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">审查机制</text>
+        <text x="70" y="252" fill="rgba(255,255,255,0.4)" font-size="10">Checkpoint 批量审查</text>
+        <text x="70" y="268" fill="rgba(251,191,36,0.5)" font-size="10">审查粒度较粗</text>
+        <line x1="70" y1="278" x2="350" y2="278" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="70" y="298" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">效率</text>
+        <text x="70" y="316" fill="rgba(255,255,255,0.4)" font-size="10">高效率，无 subagent 开销</text>
+        <text x="70" y="332" fill="rgba(52,211,153,0.5)" font-size="10">适合简单、低风险 plan</text>
+        <line x1="70" y1="342" x2="350" y2="342" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="70" y="362" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">Red Flags</text>
+        <text x="70" y="380" fill="rgba(248,113,113,0.5)" font-size="10">- 不能跳过验证步骤</text>
+        <text x="70" y="396" fill="rgba(248,113,113,0.5)" font-size="10">- 卡住时必须停止求助</text>
+        <text x="70" y="412" fill="rgba(248,113,113,0.5)" font-size="10">- 不能在猜测中推进</text>
+        <line x1="70" y1="422" x2="350" y2="422" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="70" y="442" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">前置要求</text>
+        <text x="70" y="460" fill="rgba(255,255,255,0.4)" font-size="10">using-git-worktrees（REQUIRED）</text>
+        <text x="70" y="476" fill="rgba(255,255,255,0.4)" font-size="10">finishing-a-development-branch</text>
+        <text x="70" y="492" fill="rgba(255,255,255,0.4)" font-size="10">"Review plan critically first"</text>
+        <rect x="55" y="510" width="310" height="30" rx="6" fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.2)" stroke-width="1"/>
+        <text x="210" y="530" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">无 subagent 支持时的备选方案</text>
+        <!-- Mode 2: Subagent-Driven -->
+        <rect x="400" y="95" width="340" height="460" rx="12" fill="rgba(52,211,153,0.04)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="430" y="122" fill="#34d399" font-size="14" font-weight="700">subagent-driven-development</text>
+        <text x="430" y="140" fill="rgba(255,255,255,0.35)" font-size="10">Subagent-Driven — 子代理驱动（推荐）</text>
+        <!-- Properties -->
+        <text x="430" y="170" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">上下文管理</text>
+        <text x="430" y="188" fill="rgba(255,255,255,0.4)" font-size="10">每个 Task 一个全新 subagent</text>
+        <text x="430" y="204" fill="rgba(52,211,153,0.5)" font-size="10">优势：零上下文污染</text>
+        <line x1="430" y1="214" x2="710" y2="214" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="430" y="234" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">审查机制</text>
+        <text x="430" y="252" fill="rgba(255,255,255,0.4)" font-size="10">双阶段审查：spec → quality</text>
+        <text x="430" y="268" fill="rgba(52,211,153,0.5)" font-size="10">每个 Task 独立审查</text>
+        <line x1="430" y1="278" x2="710" y2="278" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="430" y="298" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">质量</text>
+        <text x="430" y="316" fill="rgba(255,255,255,0.4)" font-size="10">高质量，双重审查门控</text>
+        <text x="430" y="332" fill="rgba(52,211,153,0.5)" font-size="10">适合复杂、高风险 plan</text>
+        <line x1="430" y1="342" x2="710" y2="342" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="430" y="362" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">Red Flags</text>
+        <text x="430" y="380" fill="rgba(248,113,113,0.5)" font-size="10">- 不能跳过 spec/quality 审查</text>
+        <text x="430" y="396" fill="rgba(248,113,113,0.5)" font-size="10">- 不能让实现者自我审查替代审查</text>
+        <text x="430" y="412" fill="rgba(248,113,113,0.5)" font-size="10">- 不能并行派发多个实现 subagent</text>
+        <line x1="430" y1="422" x2="710" y2="422" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <text x="430" y="442" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">前置要求</text>
+        <text x="430" y="460" fill="rgba(255,255,255,0.4)" font-size="10">using-git-worktrees（REQUIRED）</text>
+        <text x="430" y="476" fill="rgba(255,255,255,0.4)" font-size="10">finishing-a-development-branch</text>
+        <text x="430" y="492" fill="rgba(255,255,255,0.4)" font-size="10">"Never let implementer self-review"</text>
+        <rect x="415" y="510" width="310" height="30" rx="6" fill="rgba(52,211,153,0.08)" stroke="rgba(52,211,153,0.2)" stroke-width="1"/>
+        <text x="570" y="530" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600">有 subagent 支持时的推荐方案</text>
+      </svg>
+    </div>
+
+    <h3>7.2 为什么 Subagent-Driven 是推荐模式</h3>
+    <p>writing-plans 明确将 subagent-driven-development 标记为 "(recommended)"。原因与 writing-plans 的核心设计原则直接相关：</p>
+
+    <div class="card green">
+      <p><strong>核心一致性：</strong>writing-plans 的设计假设执行者是"零上下文"的。subagent-driven-development 正好满足这个假设 — 每个 Task 的 subagent 确实没有任何前置上下文。而 executing-plans 在同一 session 中执行，理论上存在上下文泄露的可能。</p>
+      <p>subagent-driven-development 的核心原则也呼应了这一点：</p>
+      <blockquote><strong>"They should never inherit your session's context or history — you construct exactly what they need."</strong> 它们永远不应该继承你的 session 上下文或历史 — 你精确构建它们需要的内容。</blockquote>
+    </div>
+
+    <h3>7.3 两种模式的共同前置要求</h3>
+    <p>无论选择哪种执行模式，都<strong>必须先使用 using-git-worktrees 创建隔离工作区</strong>：</p>
+    <pre><code><span class="cmt">// 两种模式的共同前置要求：</span>
+<span class="str">1. using-git-worktrees — REQUIRED
+   - 创建隔离工作区
+   - 验证 .gitignore
+   - 运行基线测试
+   - 报告就绪状态</span>
+
+<span class="str">2. Review plan critically first
+   - 识别问题或疑虑
+   - 有问题 → 先向 human 提出</span></code></pre>
+    <p>using-git-worktrees 的 REQUIRED 标记确保了执行环境的安全隔离。即使执行过程中出错，也不会影响主分支或其他工作。</p>
+
+    <h3>7.4 executing-plans 的关键约束</h3>
+    <p>executing-plans 虽然是备选方案，但仍然有严格的质量约束：</p>
+    <pre><code><span class="str">## When to Stop and Ask for Help
+
+**STOP executing immediately when:**
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps preventing starting
+- You don't understand an instruction
+- Verification fails repeatedly</span>
+
+<span class="cmt">何时停止并寻求帮助：
+遇到以下情况立即停止执行：
+- 遇到阻碍（缺失依赖、测试失败、指令不清）
+- Plan 有阻止启动的关键缺口
+- 你不理解某条指令
+- 验证反复失败</span></code></pre>
+    <p>这条规则的本质是：<strong>宁可停下来求助，也不要猜测着继续</strong>。猜测着继续产生的错误代码比停下来求助的成本高得多。</p>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 8 ====== -->
+<section class="section collapsed" id="s8">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">08</span><h2>说服原则与防御层分析</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>8.1 四层说服原则</h3>
+    <p>writing-plans 的文本中嵌入了多个说服心理学原则。这些不是偶然的措辞选择 — 它们是精心设计的<strong>行为干预</strong>，旨在阻止 agent 跳过关键步骤。</p>
+
+    <h4>Authority（权威）</h4>
+    <p>技能通过绝对化的语言建立权威感：</p>
+    <pre><code><span class="str">"NEVER write them"        — 永远不要写它们
+"plan failures"             — 计划失败
+"MANDATORY. Never skip."   — 强制的。永远不要跳过。</span></code></pre>
+    <p>"plan failures" 这个措辞将 No Placeholders 的违规行为从"bad practice"提升到了"failure"级别。这不是"建议不要做"，而是"做了就是失败"。</p>
+
+    <h4>Commitment（承诺）</h4>
+    <pre><code><span class="str">**Announce at start:** "I'm using the writing-plans skill
+to create the implementation plan."</span>
+<span class="cmt">开始时宣布："我正在使用 writing-plans 技能来创建实现计划。"</span></code></pre>
+    <p>公开宣布使用特定技能，等于做了一个<strong>公开承诺</strong>。一旦宣布，agent 在后续步骤中跳过该技能的要求会产生认知不一致，从而增加遵守的概率。</p>
+
+    <h4>Social Proof（社会证明）</h4>
+    <pre><code><span class="str">"Every step"                  — 每一步
+"DRY. YAGNI. TDD. Frequent commits."
+"assuming the engineer has zero context"</span></code></pre>
+    <p>"Every step"、"DRY. YAGNI. TDD. Frequent commits." 这些是行业最佳实践的浓缩表达。它们暗示"这是所有优秀工程师都遵循的方法"，利用社会证明来增强说服力。</p>
+
+    <h3>8.2 四层防御架构</h3>
+    <p>writing-plans 的防御不是单一层面的。它构建了一个<strong>四层纵深防御</strong>体系，每一层都独立阻止一种特定的跳过行为。</p>
+
+    <table>
+      <thead>
+        <tr><th>防御层</th><th>机制</th><th>阻止的行为</th><th>违规后果</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>L1: 权威铁律</strong></td>
+          <td>"NEVER write them"、"plan failures"、绝对化语言</td>
+          <td>整体性跳过（如忽略 No Placeholders 规则）</td>
+          <td>技能层面的明确禁止，agent 无法"合理化"跳过</td>
+        </tr>
+        <tr>
+          <td><strong>L2: 反合理化</strong></td>
+          <td>No Placeholders 的 6 种具体模式 + 反例</td>
+          <td>"这个 placeholder 可以接受"的自我合理化</td>
+          <td>每种合理化路径都被预判和封堵</td>
+        </tr>
+        <tr>
+          <td><strong>L3: 序列门控</strong></td>
+          <td>5 步固定结构 + checkbox 语法</td>
+          <td>跳过中间步骤（如跳过 Verify RED）</td>
+          <td>结构不允许跳步 — 5 步是固定序列</td>
+        </tr>
+        <tr>
+          <td><strong>L4: 证据验证</strong></td>
+          <td>Verify RED + Verify GREEN + 预期输出</td>
+          <td>执行了步骤但没有真正验证</td>
+          <td>必须有可观察的证据（输出匹配预期）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card accent">
+      <p><strong>防御层的协同效应：</strong>这四层防御不是简单堆叠 — 它们覆盖了不同的"攻击面"：</p>
+      <ul>
+        <li>L1 阻止"我不需要遵守这个规则"的念头</li>
+        <li>L2 阻止"这个特殊情况可以例外"的合理化</li>
+        <li>L3 阻止"我可以跳过这一步"的操作</li>
+        <li>L4 阻止"我做了但没做对"的表面合规</li>
+      </ul>
+      <p>即使 agent 成功绕过一层（例如忽略 L1 的权威语言），后续的防御层仍然会捕获违规行为。</p>
+    </div>
+
+    <h3>8.3 TDD 铁律的防御角色</h3>
+    <p>writing-plans 本身不定义 TDD 规则 — 它引用 <strong>test-driven-development 子技能</strong>的铁律。这个设计选择有两层含义：</p>
+    <ol>
+      <li><strong>权威转移：</strong>writing-plans 不是在"自己说"TDD 很重要，而是在引用一个独立的、专门定义 TDD 规则的技能。这增加了说服力 — "这不是我说的，这是 TDD 技能说的"。</li>
+      <li><strong>执行时生效：</strong>铁律真正生效的时机不是写 plan 时，而是<strong>执行 plan 时</strong>。subagent-driven-development 要求 subagent 使用 TDD 技能。</li>
+    </ol>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 9 ====== -->
+<section class="section collapsed" id="s9">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">09</span><h2>可复用的设计模式提取</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <p>writing-plans 中包含多个可推广的设计模式。这些模式不局限于 plan 编写 — 它们适用于任何需要"将隐含知识转化为显式指令"的场景。</p>
+
+    <h3>9.1 零上下文交接模式</h3>
+    <div class="card cyan">
+      <p><strong>定义：</strong>假设信息接收者没有任何前置上下文，所有必要信息必须显式编码在交付物中。</p>
+      <p><strong>适用场景：</strong>任何涉及 agent 间交接、跨 session 传递信息、或人类与 AI 协作的场景。</p>
+    </div>
+    <p><strong>源码示例：</strong></p>
+    <pre><code><span class="str">Write comprehensive implementation plans assuming the engineer
+has zero context for our codebase and questionable taste.
+Document everything they need to know: which files to touch
+for each task, code, testing, docs they might need to check,
+how to test it.</span>
+<span class="cmt">编写全面的实现计划，假设工程师对我们的代码库零上下文
+且品味可疑。记录他们需要知道的一切。</span></code></pre>
+    <p><strong>业务技能应用：</strong>当撰写 API 文档时，假设调用者没有看到任何内部设计文档。每个端点的请求格式、响应格式、错误码、认证方式都必须自包含。</p>
+
+    <h3>9.2 No Placeholders 模式</h3>
+    <div class="card red">
+      <p><strong>定义：</strong>显式列出所有不允许的模糊表达模式，为每种模式提供具体示例和替代方案。</p>
+      <p><strong>适用场景：</strong>任何需要确保指令完整性的场景 — SOP 编写、操作手册、agent prompt 设计。</p>
+    </div>
+    <p><strong>源码示例：</strong></p>
+    <pre><code><span class="str">These are **plan failures** — never write them:
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation"
+- "Similar to Task N" (repeat the code)
+- Steps that describe what to do without showing how
+- References to types, functions, or methods not defined
+  in any task</span>
+<span class="cmt">这些是**计划失败**——永远不要写它们</span></code></pre>
+    <p><strong>业务技能应用：</strong>当编写部署 checklist 时，不要写"配置适当的环境变量"，而是写"设置 DATABASE_URL=postgres://..."。不要写"确保安全设置正确"，而是列出每一条安全规则。</p>
+
+    <h3>9.3 TDD 微循环模式</h3>
+    <div class="card green">
+      <p><strong>定义：</strong>将每个工作单元强制分解为"写测试 → 验证失败 → 写实现 → 验证通过 → 提交"的固定 5 步循环。</p>
+      <p><strong>适用场景：</strong>任何需要确保变更正确性的场景 — 代码修改、配置变更、数据迁移。</p>
+    </div>
+    <p><strong>源码示例：</strong></p>
+    <pre><code><span class="str">**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step</span>
+<span class="cmt">每一步是一个动作（2-5 分钟）</span></code></pre>
+    <p><strong>业务技能应用：</strong>当修改数据库 schema 时：(1) 写一个验证当前 schema 的测试并确认通过 (2) 写一个验证新 schema 的测试并确认失败 (3) 执行 migration (4) 确认新测试通过 (5) 提交。即使没有"代码"，同样的模式确保了变更的正确性。</p>
+
+    <h3>9.4 文件先行模式</h3>
+    <div class="card amber">
+      <p><strong>定义：</strong>在定义具体执行步骤之前，先确定所有涉及的文件及其职责。文件结构决定任务分解。</p>
+      <p><strong>适用场景：</strong>任何需要多文件协作的项目 — 代码重构、新功能开发、文档编写。</p>
+    </div>
+    <p><strong>源码示例：</strong></p>
+    <pre><code><span class="str">Before defining tasks, map out which files will be created
+or modified and what each one is responsible for. This is
+where decomposition decisions get locked in.</span>
+<span class="cmt">在定义任务之前，先规划将创建或修改哪些文件，
+以及每个文件负责什么。这是分解决策被锁定的地方。</span></code></pre>
+    <p><strong>业务技能应用：</strong>当规划一个大型文档重构时，先列出所有文档文件、每个文件的职责范围、文件之间的引用关系，然后再逐步编写每个文件。</p>
+
+    <h3>9.5 自检清单模式</h3>
+    <div class="card purple">
+      <p><strong>定义：</strong>在交付之前运行一个固定的自检清单，发现问题立即修复，不需要外部审查循环。</p>
+      <p><strong>适用场景：</strong>任何需要质量保证但又不值得派发独立审查的场景 — 快速迭代、个人项目、内部工具。</p>
+    </div>
+    <p><strong>源码示例：</strong></p>
+    <pre><code><span class="str">**1. Spec coverage:** Can you point to a task that implements it?
+**2. Placeholder scan:** Search for red flag patterns.
+**3. Type consistency:** Do names match across tasks?</span>
+
+<span class="cmt">If you find issues, fix them inline. No need to re-review
+— just fix and move on.</span>
+<span class="cmt">如果发现问题，内联修复。无需重新审查。</span></code></pre>
+    <p><strong>业务技能应用：</strong>当提交 PR 之前，运行自检清单：(1) 所有文件都有合理的 commit message？(2) 没有 console.log / debug 代码残留？(3) 新增的 API 都有文档？发现问题立即修复，不需要反复审查。</p>
+
+    <div class="card accent">
+      <p><strong>模式之间的关系：</strong>这五个模式不是孤立的 — 它们构成了一个完整的"知识传递管道"：</p>
+      <ol>
+        <li><strong>文件先行模式</strong>决定结构 → "改哪些文件"</li>
+        <li><strong>TDD 微循环模式</strong>决定步骤 → "每步做什么"</li>
+        <li><strong>No Placeholders 模式</strong>决定内容 → "每步写什么"</li>
+        <li><strong>零上下文交接模式</strong>决定标准 → "写到什么程度"</li>
+        <li><strong>自检清单模式</strong>决定质量 → "交付前检查什么"</li>
+      </ol>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <p>writing-plans Architecture Deep Dive &middot; Superpowers Skill Analysis</p>
+</footer>
+
+</div>
+
+<script>
+function toggleSection(h){h.parentElement.classList.toggle('collapsed')}
+</script>
+</body>
+</html>

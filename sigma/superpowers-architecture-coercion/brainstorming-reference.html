@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brainstorming 技能架构深度拆解</title>
+<style>
+:root{--bg:#08080c;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.06);--text:#ededef;--text-secondary:rgba(255,255,255,0.55);--text-tertiary:rgba(255,255,255,0.3);--accent-1:#f59e0b;--accent-2:#ef4444;--accent-gradient:linear-gradient(135deg,var(--accent-1),var(--accent-2));--green:#34d399;--amber:#fbbf24;--red:#f87171;--cyan:#22d3ee;--purple:#a78bfa;--font-mono:'SF Mono','Fira Code','JetBrains Mono',monospace;--font-sans:-apple-system,'Inter',system-ui,sans-serif;--radius:12px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse 600px 400px at 12% 8%,rgba(245,158,11,0.06),transparent),radial-gradient(ellipse 500px 500px at 88% 85%,rgba(239,68,68,0.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(255,255,255,0.015),transparent);pointer-events:none;z-index:0}
+.container{max-width:860px;margin:0 auto;padding:0 24px;position:relative;z-index:1}header{padding:80px 0 48px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.badge{display:inline-block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent-1);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);padding:4px 12px;border-radius:100px;margin-bottom:20px;font-weight:600}
+h1{font-size:clamp(28px,5vw,42px);font-weight:700;letter-spacing:-.5px;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px}
+.subtitle{color:var(--text-secondary);font-size:16px;max-width:620px}
+nav.toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:48px}nav.toc summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--accent-1);list-style:none;display:flex;align-items:center;gap:8px}nav.toc summary::-webkit-details-marker{display:none}nav.toc summary::before{content:'▸';transition:transform .2s}nav.toc[open] summary::before{transform:rotate(90deg)}nav.toc ol{margin-top:12px;padding-left:0;list-style:none;display:grid;gap:4px}nav.toc a{color:var(--text-secondary);text-decoration:none;font-size:13px;padding:4px 8px;border-radius:6px;display:block;transition:all .2s}nav.toc a:hover{color:var(--text);background:var(--surface-hover)}nav.toc a .num{color:var(--accent-1);font-weight:600;margin-right:6px}
+.section{margin-bottom:56px}.section-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;cursor:pointer;user-select:none}.section-header .num{font-size:13px;font-weight:700;color:var(--accent-1);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.section-header h2{font-size:22px;font-weight:700;flex:1}.section-header .toggle{color:var(--text-tertiary);font-size:12px;transition:transform .3s cubic-bezier(.4,0,.2,1)}.section.collapsed .section-content{display:none}.section.collapsed .toggle{transform:rotate(-90deg)}
+h3{font-size:17px;font-weight:600;margin:32px 0 12px;color:var(--text);padding-left:12px;border-left:3px solid var(--accent-1)}h4{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--text-secondary)}
+p{color:var(--text-secondary);margin-bottom:12px;font-size:14.5px}strong{color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin:16px 0;backdrop-filter:blur(8px)}.card.accent{border-color:rgba(245,158,11,0.15);background:rgba(245,158,11,0.03)}.card.green{border-color:rgba(52,211,153,0.15);background:rgba(52,211,153,0.03)}.card.red{border-color:rgba(248,113,113,0.15);background:rgba(248,113,113,0.03)}.card.amber{border-color:rgba(251,191,36,0.15);background:rgba(251,191,36,0.03)}.card.purple{border-color:rgba(167,139,250,0.15);background:rgba(167,139,250,0.03)}.card.cyan{border-color:rgba(34,211,238,0.15);background:rgba(34,211,238,0.03)}
+pre{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:12px 0;font-family:var(--font-mono);font-size:13px;line-height:1.6}code{font-family:var(--font-mono);font-size:13px}p code,li code{background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-size:12.5px}
+.kw{color:#c084fc}.fn{color:#60a5fa}.str{color:#34d399}.num{color:#fb923c}.cmt{color:rgba(255,255,255,0.25);font-style:italic}.tag{color:#f87171}.attr{color:#fbbf24}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}th{text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface)}td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:top}tr:hover td{background:var(--surface-hover)}
+ul,ol{padding-left:20px;margin-bottom:12px}li{color:var(--text-secondary);font-size:14.5px;margin-bottom:6px}li strong{color:var(--text)}
+.checklist{list-style:none;padding-left:0}.checklist li{padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;display:flex;gap:10px;align-items:flex-start;transition:background .2s}.checklist li:hover{background:var(--surface-hover)}.checklist .check{width:18px;height:18px;border:2px solid var(--text-tertiary);border-radius:4px;flex-shrink:0;margin-top:2px}.checklist .check-text{flex:1}.checklist .check-label{font-weight:600;color:var(--text);font-size:13.5px}.checklist .check-desc{font-size:12.5px;color:var(--text-tertiary);margin-top:2px}
+.comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}.compare-item{padding:14px 16px;border-radius:8px;font-size:13px}.compare-item.good{background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.15)}.compare-item.bad{background:rgba(248,113,113,0.05);border:1px solid rgba(248,113,113,0.15)}.compare-item .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px}.compare-item.good .label{color:var(--green)}.compare-item.bad .label{color:var(--red)}
+blockquote{border-left:3px solid var(--accent-1);padding:12px 16px;margin:12px 0;background:rgba(245,158,11,0.03);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);font-size:14px}blockquote strong{font-style:normal}
+.iron-law{text-align:center;font-family:var(--font-mono);font-size:14px;font-weight:700;letter-spacing:1px;padding:20px;background:rgba(248,113,113,0.06);border:2px solid rgba(248,113,113,0.2);border-radius:var(--radius);color:var(--red);margin:20px 0}
+.hard-gate{text-align:center;font-family:var(--font-mono);font-size:13.5px;font-weight:700;padding:18px;background:rgba(248,113,113,0.06);border:2px solid rgba(248,113,113,0.25);border-radius:var(--radius);color:var(--red);margin:20px 0;line-height:1.8}
+.tag-pill{font-size:11px;padding:2px 8px;border-radius:100px;font-weight:500;display:inline-block}.tag-pill.use{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2)}.tag-pill.avoid{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.2)}.tag-pill.moderate{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.2)}
+.flow-step{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;position:relative}.flow-step:not(:last-child)::after{content:'';position:absolute;left:19px;top:40px;bottom:-8px;width:2px;background:var(--border)}.flow-step .step-num{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;z-index:1}.flow-step .step-num.s1{background:rgba(245,158,11,0.15);color:var(--accent-1);border:1px solid rgba(245,158,11,0.3)}.flow-step .step-num.s2{background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3)}.flow-step .step-num.s3{background:rgba(167,139,250,0.15);color:var(--purple);border:1px solid rgba(167,139,250,0.3)}.flow-step .step-num.s4{background:rgba(251,191,36,0.15);color:var(--amber);border:1px solid rgba(251,191,36,0.3)}.flow-step .step-body{flex:1}.flow-step .step-title{font-weight:600;font-size:14.5px;margin-bottom:4px}.flow-step .step-desc{font-size:13px;color:var(--text-secondary)}
+.sub-collapse summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--text);padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px}.sub-collapse summary::-webkit-details-marker{display:none}.sub-collapse summary::before{content:'▸';color:var(--accent-1);transition:transform .2s;font-size:12px}.sub-collapse[open] summary::before{transform:rotate(90deg)}.sub-collapse .sub-content{padding:8px 0 8px 16px;border-left:2px solid var(--border);margin-left:6px}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.arch-diagram{margin:24px 0;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto}
+.arch-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.arch-diagram .diagram-title{text-align:center;font-size:14px;font-weight:600;color:var(--accent-1);margin-bottom:16px;letter-spacing:.5px}
+footer{border-top:1px solid var(--border);padding:32px 0;text-align:center;color:var(--text-tertiary);font-size:12px}
+@media(max-width:640px){.container{padding:0 16px}header{padding:48px 0 32px}.comparison{grid-template-columns:1fr}h1{font-size:26px}pre{font-size:11.5px;padding:12px}td,th{padding:8px 10px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div class="badge">Skill Architecture Deep Dive</div>
+  <h1>Brainstorming 技能架构深度拆解</h1>
+  <p class="subtitle">从模糊想法到精确设计的结构化思考框架 — 探索、收敛、确认、文档化的完整方法论</p>
+</header>
+
+<nav class="toc" open>
+  <summary>目录导航</summary>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>设计哲学与核心约束</a></li>
+    <li><a href="#s2"><span class="num">02</span>九步 Checklist 深度拆解</a></li>
+    <li><a href="#s3"><span class="num">03</span>双重门控机制</a></li>
+    <li><a href="#s4"><span class="num">04</span>Spec Self-Review 机制</a></li>
+    <li><a href="#s5"><span class="num">05</span>Visual Companion 设计决策</a></li>
+    <li><a href="#s6"><span class="num">06</span>终端状态锁定与技能链交接</a></li>
+    <li><a href="#s7"><span class="num">07</span>说服原则与防御层分析</a></li>
+    <li><a href="#s8"><span class="num">08</span>可复用的设计模式提取</a></li>
+    <li><a href="#s9"><span class="num">09</span>实战指引</a></li>
+  </ol>
+</nav>
+
+<!-- ====== SECTION 1 ====== -->
+<section class="section" id="s1">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">01</span><h2>设计哲学与核心约束</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>1.1 这个技能解决什么问题？</h3>
+    <p>Brainstorming 解决的核心问题是：</p>
+    <blockquote><strong>AI agent（和人类开发者）拿到需求后直接动手实现，跳过了"想清楚要做什么"的阶段。</strong></blockquote>
+    <p>"直接动手"的问题不在于"做得不对"，而在于<strong>"做的可能不是该做的事"</strong>。当你没有在设计阶段暴露假设和不确定性时，这些隐藏的问题会在实现阶段爆发 — 而那时的修改成本是设计阶段的 10-100 倍。</p>
+    <p>技能的核心定位用一句话概括：</p>
+    <pre><code><span class="str">Help turn ideas into fully formed designs and specs through
+natural collaborative dialogue.</span>
+<span class="cmt">通过自然的协作对话，将想法转化为完整的设计和规格文档。</span></code></pre>
+
+    <h3>1.2 Anti-Pattern："This Is Too Simple To Need A Design"</h3>
+    <pre><code><span class="str">## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a
+single-function utility, a config change — all of them.
+"Simple" projects are where unexamined assumptions cause the
+most wasted work. The design can be short (a few sentences for
+truly simple projects), but you MUST present it and get approval.</span></code></pre>
+    <div class="card red">
+      <p><strong>为什么强制所有项目都走这个流程？</strong></p>
+      <p>这是经过实证观察得出的规则。"简单"项目恰恰是最容易出问题的：</p>
+      <ul>
+        <li><strong>简单的项目最容易被低估</strong> — "不就是加个字段吗"的假设可能忽略了数据库迁移、API 兼容性、缓存失效等连锁影响</li>
+        <li><strong>简单的项目最容易被跳过设计</strong> — 因为"看起来不需要"，所以不检查假设，导致隐藏的依赖和约束在实现时才被发现</li>
+        <li><strong>简单的项目设计文档也很短</strong> — 技能明确说 "The design can be short (a few sentences)"，门槛极低，但没有例外</li>
+      </ul>
+    </div>
+
+    <h3>1.3 &lt;HARD-GATE&gt; 标签的约束力</h3>
+    <div class="hard-gate"><span class="tag">&lt;HARD-GATE&gt;</span><br>
+Do NOT invoke any implementation skill, write any code,<br>
+scaffold any project, or take any implementation action<br>
+until you have presented a design and the user has approved it.<br>
+This applies to EVERY project regardless of perceived simplicity.<br>
+<span class="tag">&lt;/HARD-GATE&gt;</span></div>
+    <p><strong>它禁止了什么：</strong></p>
+    <ul>
+      <li>调用任何实现类技能（frontend-design、mcp-builder 等）</li>
+      <li>写任何代码</li>
+      <li>脚手架化任何项目</li>
+      <li>采取任何实现行动</li>
+    </ul>
+    <p><strong>为什么必须禁止：</strong>这是 brainstorming 技能存在的全部意义。如果允许 agent 在设计完成前"先写一点代码试试"，agent 就会绕过整个设计流程。这不是理论假设 — 这是 LLM 的已知行为模式：当有更"直接"的路径（写代码）时，agent 会选择跳过"间接"的路径（设计讨论）。</p>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 2 ====== -->
+<section class="section collapsed" id="s2">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">02</span><h2>九步 Checklist 深度拆解</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 1：九步 Checklist 流程图</div>
+      <svg viewBox="0 0 780 980" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.25)"/></marker>
+          <marker id="far" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f87171"/></marker>
+          <marker id="fag" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#34d399"/></marker>
+        </defs>
+        <!-- Step 1: Explore (cyan) -->
+        <rect x="230" y="10" width="320" height="52" rx="10" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="280" y="32" fill="#22d3ee" font-size="12" font-weight="700">Step 1</text>
+        <text x="340" y="32" fill="rgba(255,255,255,0.5)" font-size="10">探索类</text>
+        <text x="280" y="50" fill="rgba(255,255,255,0.6)" font-size="11">Explore project context — 探索项目上下文</text>
+        <line x1="390" y1="62" x2="390" y2="78" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Step 2: Visual companion (cyan) -->
+        <rect x="230" y="82" width="320" height="52" rx="10" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="280" y="104" fill="#22d3ee" font-size="12" font-weight="700">Step 2</text>
+        <text x="340" y="104" fill="rgba(255,255,255,0.5)" font-size="10">探索类</text>
+        <text x="280" y="122" fill="rgba(255,255,255,0.6)" font-size="11">Offer visual companion — 提供可视化伴侣</text>
+        <line x1="390" y1="134" x2="390" y2="150" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Step 3: Clarifying questions (cyan) -->
+        <rect x="230" y="154" width="320" height="52" rx="10" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="280" y="176" fill="#22d3ee" font-size="12" font-weight="700">Step 3</text>
+        <text x="340" y="176" fill="rgba(255,255,255,0.5)" font-size="10">探索类</text>
+        <text x="280" y="194" fill="rgba(255,255,255,0.6)" font-size="11">Ask clarifying questions — 一次一个澄清问题</text>
+        <line x1="390" y1="206" x2="390" y2="222" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Step 4: Propose approaches (amber) -->
+        <rect x="230" y="226" width="320" height="52" rx="10" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="280" y="248" fill="#fbbf24" font-size="12" font-weight="700">Step 4</text>
+        <text x="340" y="248" fill="rgba(255,255,255,0.5)" font-size="10">收敛类</text>
+        <text x="280" y="266" fill="rgba(255,255,255,0.6)" font-size="11">Propose 2-3 approaches — 提出 2-3 个方案</text>
+        <line x1="390" y1="278" x2="390" y2="294" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Step 5: Present design (amber) -->
+        <rect x="230" y="298" width="320" height="52" rx="10" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="280" y="320" fill="#fbbf24" font-size="12" font-weight="700">Step 5</text>
+        <text x="340" y="320" fill="rgba(255,255,255,0.5)" font-size="10">收敛类</text>
+        <text x="280" y="338" fill="rgba(255,255,255,0.6)" font-size="11">Present design — 分段呈现设计</text>
+        <line x1="390" y1="350" x2="390" y2="370" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Gate 1: Diamond -->
+        <polygon points="390,374 480,414 390,454 300,414" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="390" y="410" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">User approves</text>
+        <text x="390" y="424" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">design?</text>
+        <rect x="490" y="398" width="50" height="20" rx="4" fill="rgba(248,113,113,0.12)" stroke="rgba(248,113,113,0.3)" stroke-width="1"/>
+        <text x="515" y="412" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">GATE 1</text>
+        <!-- No path: back to step 5 -->
+        <line x1="480" y1="414" x2="580" y2="414" stroke="#f87171" stroke-width="1" marker-end="url(#far)"/>
+        <text x="525" y="407" text-anchor="middle" fill="#f87171" font-size="9">no, revise</text>
+        <path d="M580 414 L580 324 L552 324" fill="none" stroke="#f87171" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#far)"/>
+        <!-- Yes path -->
+        <line x1="390" y1="454" x2="390" y2="478" stroke="#34d399" stroke-width="1.5" marker-end="url(#fag)"/>
+        <text x="405" y="472" fill="#34d399" font-size="9" font-weight="600">yes</text>
+        <!-- Step 6: Write design doc (green) -->
+        <rect x="230" y="482" width="320" height="52" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="280" y="504" fill="#34d399" font-size="12" font-weight="700">Step 6</text>
+        <text x="340" y="504" fill="rgba(255,255,255,0.5)" font-size="10">文档类</text>
+        <text x="280" y="522" fill="rgba(255,255,255,0.6)" font-size="11">Write design doc — 写设计文档</text>
+        <line x1="390" y1="534" x2="390" y2="550" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Step 7: Spec self-review (green) -->
+        <rect x="230" y="554" width="320" height="52" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="280" y="576" fill="#34d399" font-size="12" font-weight="700">Step 7</text>
+        <text x="340" y="576" fill="rgba(255,255,255,0.5)" font-size="10">文档类</text>
+        <text x="280" y="594" fill="rgba(255,255,255,0.6)" font-size="11">Spec self-review — 规格自检</text>
+        <line x1="390" y1="606" x2="390" y2="626" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fa)"/>
+        <!-- Gate 2: Diamond -->
+        <polygon points="390,630 480,670 390,710 300,670" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="390" y="666" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">User reviews</text>
+        <text x="390" y="680" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">spec?</text>
+        <rect x="490" y="654" width="50" height="20" rx="4" fill="rgba(248,113,113,0.12)" stroke="rgba(248,113,113,0.3)" stroke-width="1"/>
+        <text x="515" y="668" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">GATE 2</text>
+        <!-- Changes requested path -->
+        <line x1="480" y1="670" x2="580" y2="670" stroke="#f87171" stroke-width="1" marker-end="url(#far)"/>
+        <text x="525" y="663" text-anchor="middle" fill="#f87171" font-size="9">changes</text>
+        <path d="M580 670 L580 508 L552 508" fill="none" stroke="#f87171" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#far)"/>
+        <!-- Approved path -->
+        <line x1="390" y1="710" x2="390" y2="734" stroke="#34d399" stroke-width="1.5" marker-end="url(#fag)"/>
+        <text x="405" y="728" fill="#34d399" font-size="9" font-weight="600">approved</text>
+        <!-- Step 9: Transition (green) -->
+        <rect x="230" y="738" width="320" height="52" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="280" y="760" fill="#34d399" font-size="12" font-weight="700">Step 9</text>
+        <text x="340" y="760" fill="rgba(255,255,255,0.5)" font-size="10">文档类</text>
+        <text x="280" y="778" fill="rgba(255,255,255,0.6)" font-size="11">Transition → 调用 writing-plans 技能</text>
+        <!-- Legend -->
+        <rect x="20" y="820" width="740" height="140" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="40" y="845" fill="rgba(255,255,255,0.5)" font-size="11" font-weight="600">图例</text>
+        <rect x="40" y="858" width="24" height="14" rx="3" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="74" y="870" fill="rgba(255,255,255,0.4)" font-size="10">探索类步骤（cyan）— Steps 1-3</text>
+        <rect x="40" y="880" width="24" height="14" rx="3" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="74" y="892" fill="rgba(255,255,255,0.4)" font-size="10">收敛类步骤（amber）— Steps 4-5</text>
+        <rect x="40" y="902" width="24" height="14" rx="3" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1"/>
+        <text x="74" y="914" fill="rgba(255,255,255,0.4)" font-size="10">文档类步骤（green）— Steps 6-7, 9</text>
+        <polygon points="52,934 64,942 52,950 40,942" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1"/>
+        <text x="74" y="946" fill="rgba(255,255,255,0.4)" font-size="10">门控点（red）— Gate 1 &amp; Gate 2</text>
+        <!-- Phase labels -->
+        <text x="210" y="170" text-anchor="end" fill="rgba(34,211,238,0.4)" font-size="10" font-weight="600">探索阶段</text>
+        <text x="210" y="280" text-anchor="end" fill="rgba(251,191,36,0.4)" font-size="10" font-weight="600">收敛阶段</text>
+        <text x="210" y="530" text-anchor="end" fill="rgba(52,211,153,0.4)" font-size="10" font-weight="600">文档化阶段</text>
+        <line x1="215" y1="50" x2="215" y2="206" stroke="rgba(34,211,238,0.1)" stroke-width="1"/>
+        <line x1="215" y1="226" x2="215" y2="350" stroke="rgba(251,191,36,0.1)" stroke-width="1"/>
+        <line x1="215" y1="482" x2="215" y2="790" stroke="rgba(52,211,153,0.1)" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <details class="sub-collapse">
+      <summary>Step 1: Explore project context — 探索项目上下文</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>检查现有文件、文档、最近的 git commits，理解项目当前状态。</p>
+        <pre><code><span class="str">Check out the current project state first (files, docs, recent commits)</span></code></pre>
+        <p><strong>为什么不能跳过：</strong>不了解现有代码库就提出设计方案，等于闭门造车。你的设计可能与现有架构冲突、重复已有功能、或忽略已建立的模式。</p>
+        <p><strong>额外设计决策 — 范围评估：</strong></p>
+        <pre><code><span class="str">Before asking detailed questions, assess scope: if the request
+describes multiple independent subsystems (e.g., "build a platform
+with chat, file storage, billing, and analytics"), flag this
+immediately. Don't spend questions refining details of a project
+that needs to be decomposed first.</span></code></pre>
+        <p>这是一个<strong>早期退出优化</strong>：如果需求范围过大，先拆分再设计，不要在错误粒度上浪费时间。</p>
+        <p><strong>跳过的后果：</strong>设计方案与现有代码不兼容、重复造轮子、忽略已解决的边界问题。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 2: Offer visual companion — 提供可视化伴侣</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>如果即将讨论的话题涉及视觉内容（mockup、布局、架构图），主动提供浏览器端的可视化伴侣。</p>
+        <p><strong>为什么是独立消息：</strong></p>
+        <pre><code><span class="str">This offer MUST be its own message. Do not combine it with
+clarifying questions, context summaries, or any other content.
+The message should contain ONLY the offer above and nothing else.</span></code></pre>
+        <p>如果将 offer 与其他内容混在一起，用户可能忽略 offer 或被其他信息分散注意力。独立消息 = 100% 注意力 = 明确的 yes/no 决策。</p>
+        <p><strong>跳过的后果：</strong>需要视觉展示的问题（如布局选择）只能用文字描述，用户难以理解和选择。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 3: Ask clarifying questions — 一次一个澄清问题</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>一次问一个问题来细化需求，聚焦于目的、约束、成功标准。</p>
+        <p><strong>为什么"一次只问一个问题"：</strong></p>
+        <div class="card amber">
+          <p><strong>认知负荷控制：</strong>多个问题同时出现时，用户（和 agent）倾向于只回答第一个而忽略其余。一次一个问题确保每个问题都得到充分思考。</p>
+          <p style="margin-top:8px"><strong>对话自然性：</strong>自然的人类对话就是一问一答。强制这种模式使整个流程感觉像"协作讨论"而非"审讯"。</p>
+          <p style="margin-top:8px"><strong>依赖链控制：</strong>问题 3 的答案可能改变问题 4 的内容。一次一个问题允许你根据前一个答案调整后续问题。</p>
+        </div>
+        <p><strong>为什么"multiple choice preferred"：</strong></p>
+        <pre><code><span class="str">Prefer multiple choice questions when possible, but open-ended
+is fine too</span></code></pre>
+        <p>多选题降低了用户的回答成本，同时给 agent 提供了结构化的信息。但不是所有问题都适合多选 — 当你需要开放式探索时，开放式问题更合适。</p>
+        <p><strong>跳过的后果：</strong>基于未经验证的假设进行设计，实现时发现需求理解错误。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 4: Propose 2-3 approaches — 提出 2-3 个方案</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>提出 2-3 个不同的实现方案，附带权衡分析和你的推荐。</p>
+        <pre><code><span class="str">Propose 2-3 different approaches with trade-offs
+Present options conversationally with your recommendation
+and reasoning
+Lead with your recommended option and explain why</span></code></pre>
+        <p><strong>为什么是 2-3 个而不是 1 个：</strong></p>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">提出 2-3 个方案</div>
+            <pre style="margin:0"><code>A) REST API + PostgreSQL
+   简单、成熟、易于调试
+B) GraphQL + PostgreSQL
+   灵活查询、减少过度获取
+C) tRPC + SQLite
+   全栈类型安全、零 API 代码
+
+推荐 A，因为...（权衡分析）</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">只提出 1 个方案</div>
+            <pre style="margin:0"><code>我们用 REST API + PostgreSQL。
+
+（没有对比，没有权衡，
+用户无法评估这是否最优）</code></pre>
+          </div>
+        </div>
+        <ul>
+          <li><strong>强制权衡思考：</strong>当你需要解释"为什么推荐 A 而不是 B"时，你被迫思考真正的 trade-off</li>
+          <li><strong>让用户参与决策：</strong>用户可能了解你不知道的约束（如团队技术栈偏好、性能要求）</li>
+          <li><strong>防止确认偏误：</strong>只看一个方案时，你倾向于认为它是最好的。多个方案打破这种偏误</li>
+        </ul>
+        <p><strong>"Lead with your recommended option"：</strong>先说推荐，再说理由。这比先列举所有选项再最后说推荐更高效 — 用户可以直接聚焦在你认为最好的方案上，同时了解其他选项为什么被排除。</p>
+        <p><strong>跳过的后果：</strong>陷入第一个想到的方案，错过更优解，用户没有参与感。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 5: Present design — 分段呈现设计</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>分段呈现设计，每段之后获取用户批准。覆盖：架构、组件、数据流、错误处理、测试。</p>
+        <pre><code><span class="str">Scale each section to its complexity: a few sentences if
+straightforward, up to 200-300 words if nuanced
+Ask after each section whether it looks right so far
+Cover: architecture, components, data flow, error handling, testing</span></code></pre>
+        <p><strong>为什么分段呈现：</strong></p>
+        <ul>
+          <li><strong>增量验证：</strong>每段获得批准后才进入下一段。如果架构方案被否决，不需要浪费时间为错误的架构写组件设计</li>
+          <li><strong>复杂度适配：</strong>简单的部分"几句话"就够，复杂的部分最多 200-300 词。不是所有部分都需要同等详细度</li>
+          <li><strong>允许回退：</strong>"Be ready to go back and clarify if something doesn't make sense"</li>
+        </ul>
+        <p><strong>跳过的后果：</strong>用户只看到完整设计无法参与逐段讨论，可能在最后才提出根本性的反对意见。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 6: Write design doc — 写设计文档</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>将经过口头验证的设计写入 spec 文档并提交到 git。</p>
+        <pre><code><span class="str">Write the validated design (spec) to
+docs/superpowers/specs/YYYY-MM-DD-&lt;topic&gt;-design.md
+(User preferences for spec location override this default)
+Commit the design document to git</span></code></pre>
+        <p><strong>为什么必须写文档（而不只是口头确认）：</strong></p>
+        <div class="card accent">
+          <p><strong>口头 → 书面是"转化"而非"转录"。</strong>将口头讨论转化为文档时，模型会：</p>
+          <ul>
+            <li><strong>填补未讨论的空白：</strong>口头讨论中跳过的细节必须在文档中显式化</li>
+            <li><strong>显式化隐含内容：</strong>"大家都知道"的假设必须写出来</li>
+            <li><strong>增加未约定细节：</strong>文档需要完整到能让零上下文的工程师执行</li>
+          </ul>
+          <p style="margin-top:8px">这些"转化"过程中产生的新内容可能包含错误或与用户意图不符的假设。因此必须让用户在<strong>文档化之后再次审批</strong>（Step 8）。</p>
+        </div>
+        <p><strong>跳过的后果：</strong>下游实现时没有可参考的权威文档，不同执行者对"要做什么"产生不同理解。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 7: Spec self-review — 规格自检</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>用四项检查自审 spec 文档，发现问题立即修复。</p>
+        <p>（详见第四部分）</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 8: User reviews written spec — 用户审阅规格文档</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>让用户审阅写好的 spec 文档，等待用户确认。</p>
+        <pre><code><span class="str">After the spec review loop passes, ask the user to review
+the written spec before proceeding:
+
+"Spec written and committed to &lt;path&gt;. Please review it and
+let me know if you want to make any changes before we start
+writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them
+and re-run the spec review loop. Only proceed once the user
+approves.</span></code></pre>
+        <p><strong>为什么这是第二个门控：</strong>Step 5 的口头批准和 Step 8 的文档审批是<strong>不同的事</strong>。口头讨论中用户同意的是"大方向"，文档中可能包含了口头讨论时未涉及的具体决策。用户必须看到这些"转化产生的新内容"并确认它们是正确的。</p>
+        <p><strong>跳过的后果：</strong>文档中的错误假设直接流入实现计划，导致实现返工。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Step 9: Transition to implementation — 过渡到实现</summary>
+      <div class="sub-content">
+        <p><strong>做什么：</strong>调用 writing-plans 技能创建实现计划。</p>
+        <pre><code><span class="str">Invoke the writing-plans skill to create a detailed
+implementation plan
+Do NOT invoke any other skill. writing-plans is the next step.</span></code></pre>
+        <p><strong>为什么只允许 writing-plans：</strong>（详见第六部分）</p>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 3 ====== -->
+<section class="section collapsed" id="s3">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">03</span><h2>双重门控机制</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 2：双重门控与信息转化三阶段</div>
+      <svg viewBox="0 0 880 280" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fb" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="rgba(255,255,255,0.3)"/></marker>
+          <marker id="fbr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171"/></marker>
+          <marker id="fbg" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#34d399"/></marker>
+        </defs>
+        <!-- Phase 1 -->
+        <rect x="20" y="40" width="220" height="140" rx="12" fill="rgba(34,211,238,0.04)" stroke="rgba(34,211,238,0.2)" stroke-width="1"/>
+        <text x="130" y="65" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="700">阶段一：口头讨论</text>
+        <text x="130" y="84" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">模糊、隐含、双方脑补</text>
+        <text x="40" y="108" fill="rgba(255,255,255,0.45)" font-size="10">• "用 REST API"</text>
+        <text x="40" y="124" fill="rgba(255,255,255,0.45)" font-size="10">• "返回 JSON"</text>
+        <text x="40" y="140" fill="rgba(255,255,255,0.45)" font-size="10">• "性能要好"</text>
+        <text x="40" y="156" fill="rgba(255,255,255,0.45)" font-size="10">• "用户能看报表就行"</text>
+        <text x="40" y="172" fill="rgba(248,113,113,0.4)" font-size="9">（大量隐含假设未说出口）</text>
+        <!-- Arrow 1→Gate1 -->
+        <line x1="240" y1="110" x2="290" y2="110" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fb)"/>
+        <!-- Gate 1 -->
+        <rect x="292" y="90" width="70" height="40" rx="6" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="327" y="108" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Gate 1</text>
+        <text x="327" y="122" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8">用户批准设计</text>
+        <!-- Bias annotation 1 -->
+        <text x="327" y="82" text-anchor="middle" fill="rgba(251,191,36,0.5)" font-size="8">信息偏差来源 1：</text>
+        <text x="327" y="72" text-anchor="middle" fill="rgba(251,191,36,0.5)" font-size="8">口头→文档 转化引入新内容</text>
+        <!-- Arrow Gate1→Phase2 -->
+        <line x1="362" y1="110" x2="412" y2="110" stroke="rgba(34,211,238,0.3)" stroke-width="1.5" marker-end="url(#fb)"/>
+        <!-- Phase 2 -->
+        <rect x="414" y="40" width="220" height="140" rx="12" fill="rgba(251,191,36,0.04)" stroke="rgba(251,191,36,0.2)" stroke-width="1"/>
+        <text x="524" y="65" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">阶段二：文档化转化</text>
+        <text x="524" y="84" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">模型填补空白、显式化隐含</text>
+        <text x="434" y="108" fill="rgba(255,255,255,0.45)" font-size="10">• GET /api/v1/reports?type=daily</text>
+        <text x="434" y="124" fill="rgba(255,255,255,0.45)" font-size="10">• Response: { data: Report[] }</text>
+        <text x="434" y="140" fill="rgba(255,255,255,0.45)" font-size="10">• p95 &lt; 200ms, 10k rows max</text>
+        <text x="434" y="156" fill="rgba(255,255,255,0.45)" font-size="10">• Table + Chart 两种视图</text>
+        <text x="434" y="172" fill="rgba(251,191,36,0.5)" font-size="9">（模型补充了讨论中未约定的细节）</text>
+        <!-- Arrow 2→Gate2 -->
+        <line x1="634" y1="110" x2="684" y2="110" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fb)"/>
+        <!-- Gate 2 -->
+        <rect x="686" y="90" width="70" height="40" rx="6" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="721" y="108" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Gate 2</text>
+        <text x="721" y="122" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8">用户审阅 spec</text>
+        <!-- Bias annotation 2 -->
+        <text x="721" y="82" text-anchor="middle" fill="rgba(251,191,36,0.5)" font-size="8">信息偏差来源 2：</text>
+        <text x="721" y="72" text-anchor="middle" fill="rgba(251,191,36,0.5)" font-size="8">模型假设可能不等于用户意图</text>
+        <!-- Arrow Gate2→Phase3 -->
+        <line x1="756" y1="110" x2="790" y2="110" stroke="rgba(52,211,153,0.3)" stroke-width="1.5" marker-end="url(#fbg)"/>
+        <!-- Phase 3 (smaller, right edge) -->
+        <rect x="792" y="60" width="80" height="100" rx="10" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.2)" stroke-width="1"/>
+        <text x="832" y="85" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">阶段三</text>
+        <text x="832" y="102" text-anchor="middle" fill="#34d399" font-size="10">spec 定稿</text>
+        <text x="832" y="120" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">具体</text>
+        <text x="832" y="134" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">自包含</text>
+        <text x="832" y="148" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">可作契约</text>
+        <!-- Bottom: Key insight -->
+        <rect x="20" y="210" width="840" height="50" rx="8" fill="rgba(248,113,113,0.03)" stroke="rgba(248,113,113,0.12)" stroke-width="1"/>
+        <text x="440" y="232" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="11">核心洞察：口头 → 书面是"转化"而非"转录"</text>
+        <text x="440" y="250" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">Gate 1 批准的是口头大方向 → 文档化产生新内容 → Gate 2 确认这些新内容是否正确 → 两次门控审批的是不同层次的内容</text>
+      </svg>
+    </div>
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 3：口头 → 书面的信息转化分析（三种偏差类型）</div>
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fc" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(251,191,36,0.5)"/></marker>
+        </defs>
+        <!-- Type 1: 填补空白 -->
+        <rect x="20" y="20" width="270" height="290" rx="12" fill="rgba(34,211,238,0.03)" stroke="rgba(34,211,238,0.15)" stroke-width="1"/>
+        <text x="155" y="46" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="700">偏差类型 1：填补空白</text>
+        <text x="155" y="64" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">讨论中未提到但模型自行假设</text>
+        <line x1="40" y1="76" x2="270" y2="76" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="40" y="96" fill="rgba(255,255,255,0.4)" font-size="10">讨论中说了什么：</text>
+        <text x="50" y="114" fill="rgba(255,255,255,0.6)" font-size="11">"做一个报表页面"</text>
+        <text x="40" y="138" fill="rgba(255,255,255,0.4)" font-size="10">模型在文档中补充了：</text>
+        <text x="50" y="156" fill="rgba(251,191,36,0.7)" font-size="11">• 数据源: PostgreSQL + Redis 缓存</text>
+        <text x="50" y="174" fill="rgba(251,191,36,0.7)" font-size="11">• 分页: cursor-based pagination</text>
+        <text x="50" y="192" fill="rgba(251,191,36,0.7)" font-size="11">• 权限: 基于 role 的访问控制</text>
+        <rect x="40" y="210" width="230" height="36" rx="6" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+        <text x="50" y="228" fill="rgba(248,113,113,0.6)" font-size="9">风险：用户可能想用 MongoDB</text>
+        <text x="50" y="242" fill="rgba(248,113,113,0.6)" font-size="9">或者根本不需要缓存层</text>
+        <text x="155" y="270" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">→ Gate 2 让用户发现这些假设</text>
+        <!-- Type 2: 显式化隐含 -->
+        <rect x="305" y="20" width="270" height="290" rx="12" fill="rgba(251,191,36,0.03)" stroke="rgba(251,191,36,0.15)" stroke-width="1"/>
+        <text x="440" y="46" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">偏差类型 2：显式化隐含</text>
+        <text x="440" y="64" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">双方默认理解但从未说出口</text>
+        <line x1="325" y1="76" x2="555" y2="76" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="325" y="96" fill="rgba(255,255,255,0.4)" font-size="10">双方"都知道"但没说的：</text>
+        <text x="335" y="114" fill="rgba(255,255,255,0.6)" font-size="11">"报表当然支持导出"</text>
+        <text x="335" y="132" fill="rgba(255,255,255,0.6)" font-size="11">"数据按天刷新就行"</text>
+        <text x="325" y="156" fill="rgba(255,255,255,0.4)" font-size="10">文档中必须显式写出：</text>
+        <text x="335" y="174" fill="rgba(251,191,36,0.7)" font-size="11">• 导出格式: CSV, Excel, PDF</text>
+        <text x="335" y="192" fill="rgba(251,191,36,0.7)" font-size="11">• 刷新频率: 每日凌晨 2:00 ETL</text>
+        <rect x="325" y="210" width="230" height="36" rx="6" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+        <text x="335" y="228" fill="rgba(248,113,113,0.6)" font-size="9">风险：模型选择的刷新策略</text>
+        <text x="335" y="242" fill="rgba(248,113,113,0.6)" font-size="9">可能与用户期望的不一致</text>
+        <text x="440" y="270" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">→ Gate 2 让用户确认显式化是否正确</text>
+        <!-- Type 3: 增加细节 -->
+        <rect x="590" y="20" width="270" height="290" rx="12" fill="rgba(52,211,153,0.03)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="725" y="46" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">偏差类型 3：增加细节</text>
+        <text x="725" y="64" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">模型补充了双方未约定的实现细节</text>
+        <line x1="610" y1="76" x2="840" y2="76" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="610" y="96" fill="rgba(255,255,255,0.4)" font-size="10">双方都没讨论到的实现层：</text>
+        <text x="620" y="114" fill="rgba(255,255,255,0.6)" font-size="11">（讨论只到了"报表页面"级别）</text>
+        <text x="610" y="138" fill="rgba(255,255,255,0.4)" font-size="10">文档中为达到"可执行"粒度添加：</text>
+        <text x="620" y="156" fill="rgba(251,191,36,0.7)" font-size="11">• 错误处理: 4xx/5xx 统一拦截</text>
+        <text x="620" y="174" fill="rgba(251,191,36,0.7)" font-size="11">• Loading: skeleton + 进度条</text>
+        <text x="620" y="192" fill="rgba(251,191,36,0.7)" font-size="11">• 测试: 单元 + E2E 覆盖率 >80%</text>
+        <rect x="610" y="210" width="230" height="36" rx="6" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+        <text x="620" y="228" fill="rgba(248,113,113,0.6)" font-size="9">风险：这些细节可能超出项目范围</text>
+        <text x="620" y="242" fill="rgba(248,113,113,0.6)" font-size="9">或与团队技术栈选择冲突</text>
+        <text x="725" y="270" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">→ Gate 2 让用户裁剪不合适的细节</text>
+        <!-- Bottom note -->
+        <rect x="20" y="320" width="840" height="16" rx="4" fill="rgba(251,191,36,0.03)"/>
+        <text x="440" y="332" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">三种偏差的共同点：它们都是在"口头→书面"转化过程中不可避免地产生的。Gate 2 是唯一能捕获这些偏差的机制。</text>
+      </svg>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-num s1">G1</div>
+      <div class="step-body">
+        <div class="step-title">Gate 1：口头设计展示 → 用户批准</div>
+        <div class="step-desc">在 Step 5 中，agent 分段呈现设计方案，每段之后询问 "does it look right so far?"。用户必须明确批准设计后才能进入 Step 6（写文档）。</div>
+        <pre><code><span class="str">"Present design sections" -> "User approves design?"
+"User approves design?" -> "Write design doc" [label="yes"]
+"User approves design?" -> "Present design sections" [label="no, revise"]</span></code></pre>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">G2</div>
+      <div class="step-body">
+        <div class="step-title">Gate 2：规格文档 → 用户审阅</div>
+        <div class="step-desc">在 Step 8 中，agent 写完 spec 后请用户审阅。用户批准后才能进入 Step 9（实现计划）。如果用户要求修改，回到 Step 6 重新写文档并再次自检。</div>
+        <pre><code><span class="str">"User reviews spec?" -> "Write design doc" [label="changes requested"]
+"User reviews spec?" -> "Invoke writing-plans skill" [label="approved"]</span></code></pre>
+      </div>
+    </div>
+
+    <h3>核心洞察：口头 → 书面是"转化"而非"转录"</h3>
+    <div class="card accent">
+      <p>这是 brainstorming 技能中最精妙的设计洞察。</p>
+      <p>很多人认为"写文档"只是把讨论过的内容记录下来。但实际发生的是<strong>转化</strong>：</p>
+      <ul>
+        <li><strong>填补空白：</strong>口头讨论中说"我们用 REST API"，文档中必须写明具体的 endpoint、请求格式、错误码、认证方式等从未讨论过的细节</li>
+        <li><strong>显式化隐含：</strong>口头讨论中"大家都知道"的上下文在文档中必须显式写出，因为文档的读者（子代理、未来的开发者）没有这些隐含上下文</li>
+        <li><strong>增加细节：</strong>文档需要达到"零上下文的工程师可以执行"的粒度，这必然引入口头讨论中不存在的新决策</li>
+      </ul>
+      <p style="margin-top:12px"><strong>因此，Gate 2 不可省略。</strong>用户在 Gate 1 批准的是口头设计方案。Gate 2 需要用户确认"文档化过程中产生的新内容"是否正确。这不是重复审批 — 是对不同层次内容的审批。</p>
+    </div>
+
+    <h3>Spec 文档作为下游链的"根契约"</h3>
+    <p>spec 文档是整条技能链的<strong>单一真相源</strong>：</p>
+    <pre><code>brainstorming (spec) → writing-plans (plan) → executing-plans (code)
+     ↓                      ↓                        ↓
+   根契约               实现计划                代码实现</code></pre>
+    <p>如果 spec 错了，plan 就会基于错误的假设，code 就会实现错误的功能。错误在链路下游被发现时的修复成本呈指数增长。这就是为什么 brainstorming 在 spec 上投入如此多的防御层（双重门控 + 自检 + 用户审阅）。</p>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 4 ====== -->
+<section class="section collapsed" id="s4">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">04</span><h2>Spec Self-Review 机制</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>4.1 四项自检</h3>
+    <table>
+      <thead><tr><th>检查项</th><th>做什么</th><th>为什么重要</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Placeholder scan</strong><br><span style="font-size:11px;color:var(--text-tertiary)">占位符扫描</span></td>
+          <td>查找 "TBD"、"TODO"、不完整的段落、模糊的需求描述</td>
+          <td>占位符意味着"这里还没想清楚"，实现时必然出错</td>
+        </tr>
+        <tr>
+          <td><strong>Internal consistency</strong><br><span style="font-size:11px;color:var(--text-tertiary)">内部一致性</span></td>
+          <td>检查各部分之间是否矛盾 — 架构描述与功能描述是否匹配</td>
+          <td>矛盾意味着需求有冲突，实现时必须选择一个方向</td>
+        </tr>
+        <tr>
+          <td><strong>Scope check</strong><br><span style="font-size:11px;color:var(--text-tertiary)">范围检查</span></td>
+          <td>这个 spec 是否聚焦到单个实现计划？还是需要拆分为多个子项目？</td>
+          <td>过大的 spec 会导致过长的实现计划，增加执行风险</td>
+        </tr>
+        <tr>
+          <td><strong>Ambiguity check</strong><br><span style="font-size:11px;color:var(--text-tertiary)">歧义检查</span></td>
+          <td>是否有需求可以被两种不同方式理解？如果是，选择一种并显式说明</td>
+          <td>歧义需求 = 不同的执行者会做出不同的实现</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 为什么是"自检"而不是"让审查者检查"？</h3>
+    <pre><code><span class="str">After writing the spec document, look at it with fresh eyes:
+...
+Fix any issues inline. No need to re-review — just fix and move on.</span></code></pre>
+    <p><strong>效率决策：</strong>Self-review 是 agent 自己执行的四项检查，不需要派遣子代理。这四项检查是<strong>机械性</strong>的（搜索占位符、检查矛盾、评估范围、识别歧义），不需要人类的审美判断或业务知识。agent 自己就能可靠完成。</p>
+    <p>但 brainstorming <strong>也提供了</strong>一个可选的子代理审查模板（spec-document-reviewer-prompt.md），用于更严格的外部审查。</p>
+
+    <h3>4.3 "Fix any issues inline. No need to re-review" — 为什么只修不需要重新审？</h3>
+    <p>因为四项检查是<strong>增量修复</strong>型的：发现占位符就填充内容，发现矛盾就修正一方，发现歧义就明确语义。这些修复不会引入新的问题类别。如果修复本身引入了新矛盾，那会在下一步（Gate 2: 用户审阅）被发现。</p>
+
+    <h3>4.4 与 writing-plans 中 Self-Review 的对比</h3>
+    <table>
+      <thead><tr><th>维度</th><th>brainstorming Self-Review</th><th>writing-plans Self-Review</th></tr></thead>
+      <tbody>
+        <tr><td><strong>检查对象</strong></td><td>spec 文档（设计规格）</td><td>plan 文档（实现计划）</td></tr>
+        <tr><td><strong>检查项</strong></td><td>4 项（占位符、一致性、范围、歧义）</td><td>3 项（覆盖度、占位符、类型一致性）</td></tr>
+        <tr><td><strong>执行者</strong></td><td>agent 自身</td><td>agent 自身</td></tr>
+        <tr><td><strong>修复策略</strong></td><td>"Fix inline, no need to re-review"</td><td>"Fix inline, no need to re-review"</td></tr>
+        <tr><td><strong>后续门控</strong></td><td>Gate 2: 用户审阅 spec</td><td>无（直接进入执行）</td></tr>
+      </tbody>
+    </table>
+    <p>关键差异：brainstorming 的 self-review 后有用户审阅门控（Gate 2），writing-plans 的 self-review 后没有。因为 writing-plans 的输入（spec）已经过了双重门控验证，质量有保障。</p>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 5 ====== -->
+<section class="section collapsed" id="s5">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">05</span><h2>Visual Companion 设计决策</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>5.1 Offer 必须是独立消息</h3>
+    <pre><code><span class="str">This offer MUST be its own message. Do not combine it with
+clarifying questions, context summaries, or any other content.
+The message should contain ONLY the offer above and nothing else.
+Wait for the user's response before continuing.</span></code></pre>
+    <p><strong>设计原理：</strong>当一条消息包含多个信息时，用户倾向于只回应最后一条或最紧急的一条。Visual companion 的 offer 需要明确的 yes/no 决策。如果与其他内容混在一起，用户可能忽略 offer 或做出不明确的回应。独立消息 = 100% 注意力 = 干净的决策。</p>
+
+    <h3>5.2 Per-question decision — 逐题决策</h3>
+    <pre><code><span class="str">Even after the user accepts, decide FOR EACH QUESTION whether
+to use the browser or the terminal.
+The test: would the user understand this better by seeing it
+than reading it?</span></code></pre>
+    <p><strong>为什么不是"接受了就用浏览器"：</strong>接受了 companion 不意味着每个问题都需要可视化。有些问题是概念性的（"这个功能的目的是什么？"），用文字更高效。接受 companion 只是获得了<strong>使用浏览器的权限</strong>，不是承诺每个问题都用浏览器。</p>
+
+    <h3>5.3 "UI 问题不一定是视觉问题"的设计智慧</h3>
+    <pre><code><span class="str">A question about a UI topic is not automatically a visual question.
+"What does personality mean in this context?" is a conceptual
+question — use the terminal.
+"Which wizard layout works better?" is a visual question —
+use the browser.</span></code></pre>
+    <div class="card purple">
+      <p>这个区分体现了<strong>内容类型 vs 话题类型</strong>的思考：</p>
+      <ul>
+        <li><strong>话题是 UI，但问题是概念性的：</strong>"我们这个产品的设计风格应该是什么？" — 这是概念选择，多选题更合适</li>
+        <li><strong>话题是 UI，问题是视觉性的：</strong>"这两个布局哪个更好？" — 这必须看到才能判断</li>
+      </ul>
+      <p style="margin-top:8px"><strong>判断标准只有一个：</strong>"用户通过看到它是否能比读到它更好地理解？"如果是 → 浏览器。如果不是 → 终端。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 6 ====== -->
+<section class="section collapsed" id="s6">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">06</span><h2>终端状态锁定与技能链交接</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 4：brainstorming → writing-plans 交接契约</div>
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fd" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="rgba(255,255,255,0.3)"/></marker>
+          <marker id="fda" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f59e0b"/></marker>
+          <marker id="fdg" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#34d399"/></marker>
+          <marker id="fdr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171"/></marker>
+        </defs>
+        <!-- Left: brainstorming output -->
+        <rect x="20" y="20" width="280" height="340" rx="12" fill="rgba(245,158,11,0.04)" stroke="rgba(245,158,11,0.2)" stroke-width="1.5"/>
+        <text x="160" y="48" text-anchor="middle" fill="#f59e0b" font-size="14" font-weight="700">brainstorming 输出</text>
+        <text x="160" y="66" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">spec 文档（根契约）</text>
+        <line x1="40" y1="78" x2="280" y2="78" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="160" y="98" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">文档包含的内容：</text>
+        <!-- Spec fields -->
+        <rect x="40" y="108" width="240" height="28" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <text x="55" y="126" fill="#f59e0b" font-size="11" font-weight="600">Goal</text>
+        <text x="100" y="126" fill="rgba(255,255,255,0.4)" font-size="10">— 一句话核心目标</text>
+        <rect x="40" y="142" width="240" height="28" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <text x="55" y="160" fill="#f59e0b" font-size="11" font-weight="600">Architecture</text>
+        <text x="135" y="160" fill="rgba(255,255,255,0.4)" font-size="10">— 技术架构方案</text>
+        <rect x="40" y="176" width="240" height="28" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <text x="55" y="194" fill="#f59e0b" font-size="11" font-weight="600">Components</text>
+        <text x="130" y="194" fill="rgba(255,255,255,0.4)" font-size="10">— 模块/组件划分</text>
+        <rect x="40" y="210" width="240" height="28" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <text x="55" y="228" fill="#f59e0b" font-size="11" font-weight="600">Data flow</text>
+        <text x="120" y="228" fill="rgba(255,255,255,0.4)" font-size="10">— 数据流向描述</text>
+        <rect x="40" y="244" width="240" height="28" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <text x="55" y="262" fill="#f59e0b" font-size="11" font-weight="600">Error handling</text>
+        <text x="140" y="262" fill="rgba(255,255,255,0.4)" font-size="10">— 错误处理策略</text>
+        <rect x="40" y="278" width="240" height="28" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <text x="55" y="296" fill="#f59e0b" font-size="11" font-weight="600">Testing</text>
+        <text x="110" y="296" fill="rgba(255,255,255,0.4)" font-size="10">— 测试策略与方案</text>
+        <text x="160" y="340" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">经过双重门控验证</text>
+        <!-- Arrow: Left → Center -->
+        <line x1="300" y1="190" x2="350" y2="190" stroke="#f59e0b" stroke-width="2" marker-end="url(#fda)"/>
+        <!-- Center: Handoff point -->
+        <rect x="352" y="100" width="176" height="180" rx="12" fill="rgba(251,191,36,0.06)" stroke="rgba(251,191,36,0.3)" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <text x="440" y="128" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">交接点</text>
+        <line x1="372" y1="138" x2="508" y2="138" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="440" y="160" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">零上下文交接原则</text>
+        <text x="440" y="180" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">writing-plans 只读 spec 文件</text>
+        <text x="440" y="196" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">不继承对话上下文</text>
+        <text x="440" y="220" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">spec 是唯一的信息载体</text>
+        <text x="440" y="240" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">口头讨论中的隐含知识</text>
+        <text x="440" y="256" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">不会自动传递</text>
+        <!-- Warning box -->
+        <rect x="370" y="268" width="140" height="24" rx="4" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.25)" stroke-width="1"/>
+        <text x="440" y="284" text-anchor="middle" fill="rgba(248,113,113,0.6)" font-size="9">spec 缺失 → plan 缺失</text>
+        <!-- Arrow: Center → Right -->
+        <line x1="528" y1="190" x2="578" y2="190" stroke="#34d399" stroke-width="2" marker-end="url(#fdg)"/>
+        <!-- Right: writing-plans input -->
+        <rect x="580" y="20" width="280" height="340" rx="12" fill="rgba(52,211,153,0.04)" stroke="rgba(52,211,153,0.2)" stroke-width="1.5"/>
+        <text x="720" y="48" text-anchor="middle" fill="#34d399" font-size="14" font-weight="700">writing-plans 输入</text>
+        <text x="720" y="66" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">只读取 spec 文件</text>
+        <line x1="600" y1="78" x2="840" y2="78" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="720" y="98" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">将 spec 转化为 Task 列表：</text>
+        <!-- Mapping items -->
+        <rect x="600" y="108" width="240" height="28" rx="6" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="615" y="126" fill="#34d399" font-size="11" font-weight="600">Goal</text>
+        <text x="655" y="126" fill="rgba(255,255,255,0.4)" font-size="10">→ Task 1: 项目初始化</text>
+        <rect x="600" y="142" width="240" height="28" rx="6" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="615" y="160" fill="#34d399" font-size="11" font-weight="600">Architecture</text>
+        <text x="695" y="160" fill="rgba(255,255,255,0.4)" font-size="10">→ Task 2-N: 基础架构搭建</text>
+        <rect x="600" y="176" width="240" height="28" rx="6" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="615" y="194" fill="#34d399" font-size="11" font-weight="600">Components</text>
+        <text x="690" y="194" fill="rgba(255,255,255,0.4)" font-size="10">→ Task N+1..M: 组件实现</text>
+        <rect x="600" y="210" width="240" height="28" rx="6" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="615" y="228" fill="#34d399" font-size="11" font-weight="600">Data flow</text>
+        <text x="680" y="228" fill="rgba(255,255,255,0.4)" font-size="10">→ Task M+1..P: 数据层实现</text>
+        <rect x="600" y="244" width="240" height="28" rx="6" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="615" y="262" fill="#34d399" font-size="11" font-weight="600">Error handling</text>
+        <text x="705" y="262" fill="rgba(255,255,255,0.4)" font-size="10">→ Task P+1..Q: 错误处理</text>
+        <rect x="600" y="278" width="240" height="28" rx="6" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="615" y="296" fill="#34d399" font-size="11" font-weight="600">Testing</text>
+        <text x="670" y="296" fill="rgba(255,255,255,0.4)" font-size="10">→ Task Q+1..R: 测试覆盖</text>
+        <!-- Self-review note -->
+        <text x="720" y="330" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">Self-Review: Spec coverage 检查</text>
+        <text x="720" y="346" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">确保每个 spec 字段有对应 Task</text>
+        <!-- Bottom warning -->
+        <rect x="20" y="368" width="840" height="4" rx="2" fill="rgba(248,113,113,0.15)"/>
+      </svg>
+    </div>
+
+    <h3>6.1 终端状态锁定</h3>
+    <pre><code><span class="str">**The terminal state is invoking writing-plans.** Do NOT invoke
+frontend-design, mcp-builder, or any other implementation skill.
+The ONLY skill you invoke after brainstorming is writing-plans.</span></code></pre>
+    <p><strong>为什么只允许 writing-plans：</strong></p>
+    <div class="card amber">
+      <ul>
+        <li><strong>单一交接点 = 单一责任：</strong>writing-plans 是 brainstorming 到实现之间的<strong>唯一桥梁</strong>。它负责将 spec 转化为可执行的计划。如果允许直接调用 frontend-design 或 mcp-builder，就绕过了计划阶段，直接跳到实现。</li>
+        <li><strong>计划先行：</strong>writing-plans 的 description 明确说 "Use when you have a spec or requirements for a multi-step task, <strong>before touching code</strong>"。它强制在写代码之前先有计划。</li>
+        <li><strong>零上下文传递：</strong>writing-plans 假设执行计划的工程师"对代码库零上下文且品味可疑"。这个假设确保计划必须足够详细，不依赖任何隐含知识。</li>
+      </ul>
+    </div>
+
+    <h3>6.2 Spec 文档作为交接契约</h3>
+    <p>writing-plans 读取 spec 中的以下内容来生成计划：</p>
+    <table>
+      <thead><tr><th>writing-plans 需要</th><th>spec 中应该有</th></tr></thead>
+      <tbody>
+        <tr><td>Goal（一句话目标）</td><td>设计概述中的核心目标</td></tr>
+        <tr><td>Architecture（架构描述）</td><td>架构部分的技术方案</td></tr>
+        <tr><td>Components（组件列表）</td><td>组件部分的模块划分</td></tr>
+        <tr><td>Data flow（数据流）</td><td>数据流部分的信息流向</td></tr>
+        <tr><td>Error handling（错误处理）</td><td>错误处理部分的策略</td></tr>
+        <tr><td>Testing strategy（测试策略）</td><td>测试部分的方案</td></tr>
+        <tr><td>Constraints（约束条件）</td><td>讨论中确认的约束和限制</td></tr>
+      </tbody>
+    </table>
+    <p>writing-plans 的 Self-Review 第一步就是 <strong>"Spec coverage"</strong>：</p>
+    <pre><code><span class="str">1. Spec coverage: Skim each section/requirement in the spec.
+   Can you point to a task that implements it? List any gaps.</span></code></pre>
+    <p>这直接验证了 spec → plan 的完整性。如果 spec 中有一个需求在 plan 中找不到对应任务，说明计划有遗漏。</p>
+
+    <h3>6.3 零上下文原则的体现</h3>
+    <pre><code><span class="str">Write comprehensive implementation plans assuming the engineer
+has zero context for our codebase and questionable taste.
+Document everything they need to know.</span></code></pre>
+    <p>writing-plans 的 Overview 第一句就设定了零上下文假设。这意味着 spec 文档必须足够详细，使 writing-plans 能生成不依赖任何隐含知识的计划。这是 brainstorming 强制"写文档"而非"口头确认"的根本原因 — 口头讨论中的隐含知识无法传递给下游的子代理。</p>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 7 ====== -->
+<section class="section collapsed" id="s7">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">07</span><h2>说服原则与防御层分析</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>7.1 Authority（权威）</h3>
+    <table>
+      <thead><tr><th>应用点</th><th>源码</th><th>中文</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;HARD-GATE&gt;</code></td><td><code>Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it.</code></td><td>在展示设计并获得用户批准之前，不得调用任何实现技能、写任何代码、脚手架化任何项目或采取任何实现行动。</td></tr>
+        <tr><td>强制 Checklist</td><td><code>You MUST create a task for each of these items and complete them in order</code></td><td>你必须为这些项目中的每一项创建任务并按顺序完成。</td></tr>
+        <tr><td>Anti-Pattern</td><td><code>you MUST present it and get approval</code></td><td>你必须展示它并获得批准。</td></tr>
+        <tr><td>终端状态</td><td><code>Do NOT invoke frontend-design, mcp-builder, or any other implementation skill</code></td><td>不得调用 frontend-design、mcp-builder 或任何其他实现技能。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.2 Commitment（承诺）</h3>
+    <pre><code><span class="str">- One question at a time - Don't overwhelm with multiple questions
+- Multiple choice preferred - Easier to answer than open-ended</span></code></pre>
+    <p>"一次一个问题" + "多选题优先" = 降低用户回答成本 → 提高参与度 → 增加对话深度 → 更多信息交换 → 更好的设计。这是 Commitment 原则的间接应用：不是直接要求用户承诺，而是通过降低承诺成本来增加承诺概率。</p>
+
+    <h3>7.3 Scarcity（稀缺性）</h3>
+    <pre><code><span class="str">- Incremental validation - Present design, get approval before
+  moving on</span></code></pre>
+    <p>"get approval <strong>before</strong> moving on" — 时序约束。不允许先进入下一步再回头获取批准。这创建了明确的"不能前进直到..."的门控。</p>
+
+    <h3>7.4 Unity（统一/协作）</h3>
+    <pre><code><span class="str">Help turn ideas into fully formed designs and specs through
+natural collaborative dialogue.</span></code></pre>
+    <p>"collaborative dialogue"（协作对话）= 我们一起工作。"natural"（自然）= 不是审讯，不是清单，而是像同事之间讨论问题一样。这是 Unity 原则的体现 — 将 agent 和用户定位为平等的协作者。</p>
+
+    <h3>7.5 防御层覆盖分析</h3>
+    <table>
+      <thead><tr><th>防御层</th><th>覆盖情况</th><th>具体实现</th></tr></thead>
+      <tbody>
+        <tr><td><strong>L0: 硬门控注入</strong></td><td><span class="tag-pill use">已覆盖</span></td><td><code>&lt;HARD-GATE&gt;</code> — 禁止在设计前采取任何实现行动</td></tr>
+        <tr><td><strong>L1: 顺序门控</strong></td><td><span class="tag-pill use">已覆盖</span></td><td>9 步 Checklist 强制按序执行 + "complete them in order"</td></tr>
+        <tr><td><strong>L2: 双重确认</strong></td><td><span class="tag-pill use">已覆盖</span></td><td>Gate 1（口头设计批准）+ Gate 2（spec 文档审阅）</td></tr>
+        <tr><td><strong>L3: When/Then 触发器</strong></td><td><span class="tag-pill use">已覆盖</span></td><td>"User approves? → yes: Write doc / no: Revise"</td></tr>
+        <tr><td><strong>L4: 终端状态锁定</strong></td><td><span class="tag-pill use">已覆盖</span></td><td>"The terminal state is invoking writing-plans"</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 8 ====== -->
+<section class="section collapsed" id="s8">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">08</span><h2>可复用的设计模式提取</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 5：收敛过程可视化 — 从模糊需求到精确 spec</div>
+      <svg viewBox="0 0 880 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="fe" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(255,255,255,0.3)"/></marker>
+          <linearGradient id="fG1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(34,211,238,0.1)"/><stop offset="100%" stop-color="rgba(34,211,238,0.03)"/></linearGradient>
+          <linearGradient id="fG2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(251,191,36,0.1)"/><stop offset="100%" stop-color="rgba(251,191,36,0.03)"/></linearGradient>
+          <linearGradient id="fG3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(245,158,11,0.1)"/><stop offset="100%" stop-color="rgba(245,158,11,0.03)"/></linearGradient>
+          <linearGradient id="fG4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(52,211,153,0.1)"/><stop offset="100%" stop-color="rgba(52,211,153,0.03)"/></linearGradient>
+          <linearGradient id="fG5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(52,211,153,0.15)"/><stop offset="100%" stop-color="rgba(52,211,153,0.05)"/></linearGradient>
+        </defs>
+        <!-- Layer 1: Widest (fuzzy) -->
+        <polygon points="140,10 740,10 720,80 160,80" fill="url(#fG1)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="440" y="38" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="700">模糊需求</text>
+        <text x="440" y="58" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="11">"报表页面性能不好"</text>
+        <text x="440" y="74" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Checklist Step 1: 探索项目上下文</text>
+        <!-- Arrow 1→2 -->
+        <line x1="440" y1="80" x2="440" y2="100" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fe)"/>
+        <text x="480" y="94" fill="rgba(22,211,238,0.5)" font-size="8">探索上下文</text>
+        <!-- Layer 2 -->
+        <polygon points="180,104 700,104 685,174 195,174" fill="url(#fG2)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="440" y="130" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">确认问题范围</text>
+        <text x="440" y="150" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="11">"哪些报表？什么指标慢？什么场景？"</text>
+        <text x="440" y="168" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Checklist Step 3: 一次一个澄清问题</text>
+        <!-- Arrow 2→3 -->
+        <line x1="440" y1="174" x2="440" y2="194" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fe)"/>
+        <text x="480" y="188" fill="rgba(251,191,36,0.5)" font-size="8">提问收敛</text>
+        <!-- Layer 3 -->
+        <polygon points="220,198 660,198 648,268 232,268" fill="url(#fG3)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="440" y="224" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">识别瓶颈方向</text>
+        <text x="440" y="244" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="11">"数据接口慢？渲染慢？资源加载慢？"</text>
+        <text x="440" y="262" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Checklist Step 4: 提出 2-3 个方案对比</text>
+        <!-- Arrow 3→4 -->
+        <line x1="440" y1="268" x2="440" y2="288" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fe)"/>
+        <text x="480" y="282" fill="rgba(245,158,11,0.5)" font-size="8">方案对比</text>
+        <!-- Layer 4 -->
+        <polygon points="270,292 610,292 600,362 280,362" fill="url(#fG4)" stroke="#34d399" stroke-width="1"/>
+        <text x="440" y="318" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">选定方案</text>
+        <text x="440" y="338" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="11">"优先优化数据层 + 分页加载"</text>
+        <text x="440" y="356" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Checklist Step 5: 分段呈现设计 → Gate 1</text>
+        <!-- Arrow 4→5 -->
+        <line x1="440" y1="362" x2="440" y2="382" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" marker-end="url(#fe)"/>
+        <text x="480" y="376" fill="rgba(52,211,153,0.5)" font-size="8">展示设计</text>
+        <!-- Layer 5: Narrowest (precise) -->
+        <polygon points="320,386 560,386 552,456 328,456" fill="url(#fG5)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="440" y="406" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">精确 spec</text>
+        <text x="440" y="424" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="10">"采集四层数据，按 X 标准判定，</text>
+        <text x="440" y="440" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="10">输出两部分报告，p95 &lt; 200ms"</text>
+        <text x="440" y="454" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Checklist Steps 6-8: 写文档 → 自检 → Gate 2</text>
+        <!-- Side annotations -->
+        <text x="130" y="50" text-anchor="end" fill="rgba(34,211,238,0.4)" font-size="10" font-weight="600">探索阶段</text>
+        <text x="130" y="240" text-anchor="end" fill="rgba(251,191,36,0.4)" font-size="10" font-weight="600">收敛阶段</text>
+        <text x="130" y="430" text-anchor="end" fill="rgba(52,211,153,0.4)" font-size="10" font-weight="600">文档化阶段</text>
+        <line x1="135" y1="10" x2="135" y2="80" stroke="rgba(34,211,238,0.1)" stroke-width="1"/>
+        <line x1="135" y1="104" x2="135" y2="362" stroke="rgba(251,191,36,0.1)" stroke-width="1"/>
+        <line x1="135" y1="386" x2="135" y2="456" stroke="rgba(52,211,153,0.1)" stroke-width="1"/>
+        <!-- Bottom: Width labels -->
+        <line x1="140" y1="480" x2="740" y2="480" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <line x1="320" y1="470" x2="560" y2="470" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="440" y="498" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10">模糊度递减 — 每一步 Checklist 步骤将可能性空间收窄</text>
+        <text x="220" y="510" text-anchor="middle" fill="rgba(34,211,238,0.3)" font-size="9">可能性空间大</text>
+        <text x="660" y="510" text-anchor="middle" fill="rgba(52,211,153,0.3)" font-size="9">可能性空间小</text>
+      </svg>
+    </div>
+
+    <details class="sub-collapse">
+      <summary>模式 1：双重门控模式</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>对同一个产出物要求两次独立的用户确认，分别在"口头/草稿"和"书面/定稿"阶段。</p>
+        <p><strong>适用场景：</strong>产出物将从"内部讨论"传递给"外部执行者"时。口头讨论中的隐含知识不会自动传递，书面化过程中产生的"转化内容"需要再次验证。</p>
+        <p><strong>源码示例：</strong></p>
+        <pre><code><span class="str">"Present design sections" -> "User approves design?"
+"User approves design?" -> "Write design doc" [label="yes"]
+...
+"User reviews spec?" -> "Invoke writing-plans" [label="approved"]
+"User reviews spec?" -> "Write design doc" [label="changes requested"]</span></code></pre>
+        <p><strong>业务 Skill 应用：</strong>在"API 设计"技能中：先口头讨论 API 端点 → 用户批准 → 写 OpenAPI spec 文档 → 用户再次审阅 spec → 交给实现团队。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 2：渐进式收敛模式</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>通过"一次一个问题"的方式，逐步将模糊需求收敛为精确规格。</p>
+        <p><strong>适用场景：</strong>需求不明确、用户自己也不确定想要什么时。</p>
+        <p><strong>源码示例：</strong></p>
+        <pre><code><span class="str">- Ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible
+- Only one question per message
+- Focus on understanding: purpose, constraints, success criteria</span></code></pre>
+        <p><strong>关键设计：</strong>"一次一个问题"不是慢，而是<strong>可控</strong>。每个问题的答案都会影响后续问题的设计。如果一次问 5 个问题，你无法根据第 1 个答案调整第 3 个问题。</p>
+        <p><strong>业务 Skill 应用：</strong>在"需求分析"技能中：不是一次性问"你需要什么功能、什么约束、什么性能要求、什么安全要求"，而是先问"这个系统的主要用户是谁？"，根据答案再问"他们最常用的操作是什么？"</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 3：方案对比模式</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>总是提出 2-3 个方案并附带权衡分析，而不是只提出一个"最优"方案。</p>
+        <p><strong>适用场景：</strong>有多个可行方案的技术决策。</p>
+        <p><strong>源码示例：</strong></p>
+        <pre><code><span class="str">- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation
+  and reasoning
+- Lead with your recommended option and explain why</span></code></pre>
+        <p><strong>业务 Skill 应用：</strong>在"技术选型"技能中：提出 2-3 个数据库方案（PostgreSQL vs MongoDB vs SQLite），各自列出适用场景和限制，给出推荐并解释理由。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 4：Anti-Pattern 声明模式</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>用明确的"反面案例 + 为什么反面"来阻止最常见的错误行为。</p>
+        <p><strong>适用场景：</strong>有已知的常见失败模式时。</p>
+        <p><strong>源码示例：</strong></p>
+        <pre><code><span class="str">## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a
+single-function utility, a config change — all of them.
+"Simple" projects are where unexamined assumptions cause
+the most wasted work. The design can be short (a few sentences
+for truly simple projects), but you MUST present it and
+get approval.</span></code></pre>
+        <p><strong>关键设计：</strong>Anti-Pattern 不是简单说"不要这样做"，而是<strong>承认这种想法的合理性</strong>（"确实看起来简单"），然后解释<strong>为什么这种合理性是错的</strong>（"简单项目恰恰是最容易出问题的"），最后给出<strong>低成本的合规方式</strong>（"设计可以很短"）。</p>
+        <p><strong>业务 Skill 应用：</strong>在"代码审查"技能中：<code>Anti-Pattern: "This is just a minor change" — 小改动也可能引入大 bug。审查不需要很深，但必须执行。</code></p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 5：自检清单模式</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>产出完成后立即执行结构化的自检，发现问题立即修复，不需要外部审查。</p>
+        <p><strong>适用场景：</strong>检查项是机械性的、不需要人类判断的场景。</p>
+        <p><strong>源码示例：</strong></p>
+        <pre><code><span class="str">1. Placeholder scan: Any "TBD", "TODO", incomplete sections?
+2. Internal consistency: Do any sections contradict each other?
+3. Scope check: Focused enough for a single plan?
+4. Ambiguity check: Could any requirement be interpreted two ways?
+
+Fix any issues inline. No need to re-review — just fix and move on.</span></code></pre>
+        <p><strong>"No need to re-review" 的设计智慧：</strong>自检的修复不会引入新的问题类别，因此不需要迭代。但如果发现问题太多（超过 3 个占位符、多处理矛盾），应该考虑重写整个 section 而非逐个修复。</p>
+        <p><strong>业务 Skill 应用：</strong>在"API 文档"技能中：写完 API 文档后自检 — 所有端点都有示例吗？错误码完整吗？认证方式一致吗？</p>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<!-- ====== SECTION 9 ====== -->
+<section class="section collapsed" id="s9">
+  <div class="section-header" onclick="toggleSection(this)"><span class="num">09</span><h2>实战指引</h2><span class="toggle">▼</span></div>
+  <div class="section-content">
+
+    <h3>9.1 拿到业务需求时，先回答这 5 个问题</h3>
+    <div class="card green">
+      <ol>
+        <li><strong>这个需求解决谁的问题？</strong> — 不是"用户"，而是具体哪类用户、什么场景下、什么触发条件</li>
+        <li><strong>成功的标准是什么？</strong> — 不是"功能完成了"，而是"什么可观察的结果说明成功了"</li>
+        <li><strong>什么约束是硬性的？</strong> — 技术栈、性能要求、安全要求、合规要求、时间限制</li>
+        <li><strong>什么假设还没验证？</strong> — "我们用 PostgreSQL"是假设，"用户需要实时通知"是假设。列出所有假设。</li>
+        <li><strong>最坏情况是什么？</strong> — 如果核心假设错了，最坏的影响是什么？能否接受？</li>
+      </ol>
+    </div>
+    <p>如果你能回答这 5 个问题，你的需求已经比大多数"直接动手"的情况清晰 10 倍。</p>
+
+    <h3>9.2 如何用"一次一个问题"探索不确定的业务领域</h3>
+    <p>假设你想为团队设计一个"代码审查自动化"工具，但不确定具体需求：</p>
+    <div class="flow-step">
+      <div class="step-num s1">Q1</div>
+      <div class="step-body">
+        <div class="step-title">当前代码审查的最大痛点是什么？</div>
+        <div class="step-desc">如果回答"太慢" → 后续问"是哪个环节慢：创建 PR、分配审查者、实际审查、汇总反馈？"</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s1">Q2</div>
+      <div class="step-body">
+        <div class="step-title">审查者通常是同一个人还是不同的人？</div>
+        <div class="step-desc">如果回答"通常同一个人" → 关注"减少审查者疲劳"；如果回答"不同的人" → 关注"知识传递和标准一致性"。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s1">Q3</div>
+      <div class="step-body">
+        <div class="step-title">审查中发现的常见问题类型是什么？</div>
+        <div class="step-desc">这个答案直接影响工具的核心功能 — 如果主要是"风格问题"，工具需要 lint 集成；如果是"逻辑错误"，工具需要静态分析。</div>
+      </div>
+    </div>
+    <p>注意：每个问题的答案都改变了下一个问题的方向。这就是"一次一个问题"的力量。</p>
+
+    <h3>9.3 如何判断自己是否"想清楚了"</h3>
+    <div class="card red">
+      <p><strong>你还没想清楚的信号：</strong></p>
+      <ul>
+        <li>你用的词是"大概"、"应该"、"可能"、"差不多"</li>
+        <li>你无法用一句话描述"这个东西做完后，用户会看到什么变化"</li>
+        <li>你无法列出 3 个以上的具体文件/模块/接口名称</li>
+        <li>你无法说出"如果 X 出错了，应该怎么办"</li>
+        <li>你还没考虑过"什么情况下不应该做这个功能"</li>
+      </ul>
+      <p style="margin-top:12px"><strong>你想清楚的信号：</strong></p>
+      <ul>
+        <li>你可以说出"这个功能的目标是 [一句话]，成功的标志是 [可观察结果]"</li>
+        <li>你可以画出组件之间的数据流向</li>
+        <li>你可以列出所有已确认的约束和所有未验证的假设</li>
+        <li>你可以回答"如果去掉这个功能，用户还能用吗？如果不能，为什么？"</li>
+      </ul>
+    </div>
+
+    <h3>9.4 从模糊想法到精确 Skill 需求的转化路径</h3>
+    <p>假设你有一个模糊的想法："我想让 AI 更好地帮我写代码"。以下是转化路径：</p>
+
+    <div class="flow-step">
+      <div class="step-num s2">1</div>
+      <div class="step-body">
+        <div class="step-title">问题诊断（不是功能定义）</div>
+        <div class="step-desc">不是"我要一个代码生成技能"，而是"AI 写的代码有什么具体问题？是风格不一致？是缺少测试？是不遵循项目约定？"</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">2</div>
+      <div class="step-body">
+        <div class="step-title">约束收集</div>
+        <div class="step-desc">不是"功能要有什么"，而是"在什么条件下使用？什么触发？什么场景不适用？与现有工具的冲突是什么？"</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">3</div>
+      <div class="step-body">
+        <div class="step-title">方案对比</div>
+        <div class="step-desc">A) 修改 CLAUDE.md 添加规则？B) 创建一个 discipline-enforcing skill？C) 修改现有 skill？各自的 trade-off 是什么？</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">4</div>
+      <div class="step-body">
+        <div class="step-title">假设验证</div>
+        <div class="step-desc">用 brainstorming 的基线测试方法：在没有这个 skill 的情况下，AI 会犯什么错？记录具体的失败模式。这些就是你需要在 skill 中解决的问题。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s3">5</div>
+      <div class="step-body">
+        <div class="step-title">规格文档化</div>
+        <div class="step-desc">将以上所有内容写成 spec 文档：问题定义、触发条件、成功标准、约束、假设、方案选择及理由。让另一个人（或另一个 agent）审阅。</div>
+      </div>
+    </div>
+
+    <p>完成这 5 步后，你就有了 brainstorming 技能所要求的"fully formed design"。从"模糊想法"到"精确需求"的转化，不是灵感，而是结构化的思考流程。</p>
+
+  </div>
+</section>
+
+<footer>
+  <p>Based on superpowers/skills/brainstorming — Generated for skill architecture study</p>
+</footer>
+
+</div>
+
+<script>
+function toggleSection(h){h.parentElement.classList.toggle('collapsed')}
+document.addEventListener('keydown',function(e){if(e.key==='e'&&e.altKey)document.querySelectorAll('.section').forEach(s=>s.classList.remove('collapsed'));if(e.key==='c'&&e.altKey)document.querySelectorAll('.section').forEach(s=>s.classList.add('collapsed'))});
+</script>
+</body>
+</html>

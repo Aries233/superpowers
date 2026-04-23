@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Using-Superpowers Hook 注入与技能架构深度拆解</title>
+<style>
+:root {
+  --bg: #08080c;
+  --surface: rgba(255,255,255,0.03);
+  --surface-hover: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.06);
+  --text: #ededef;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent-1: #22d3ee;
+  --accent-2: #34d399;
+  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --cyan: #22d3ee;
+  --purple: #a78bfa;
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, 'Inter', system-ui, sans-serif;
+  --radius: 12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse 600px 400px at 10% 8%,rgba(34,211,238,0.06),transparent),radial-gradient(ellipse 500px 500px at 90% 85%,rgba(52,211,153,0.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(255,255,255,0.015),transparent);pointer-events:none;z-index:0}
+.container{max-width:860px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+header{padding:80px 0 48px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.badge{display:inline-block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);padding:4px 12px;border-radius:100px;margin-bottom:20px;font-weight:600}
+h1{font-size:clamp(28px,5vw,42px);font-weight:700;letter-spacing:-0.5px;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px}
+.subtitle{color:var(--text-secondary);font-size:16px;max-width:620px}
+nav.toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:48px}
+nav.toc summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--cyan);list-style:none;display:flex;align-items:center;gap:8px}
+nav.toc summary::-webkit-details-marker{display:none}
+nav.toc summary::before{content:'▸';transition:transform .2s}
+nav.toc[open] summary::before{transform:rotate(90deg)}
+nav.toc ol{margin-top:12px;padding-left:0;list-style:none;display:grid;gap:4px}
+nav.toc a{color:var(--text-secondary);text-decoration:none;font-size:13px;padding:4px 8px;border-radius:6px;display:block;transition:all .2s}
+nav.toc a:hover{color:var(--text);background:var(--surface-hover)}
+nav.toc a .num{color:var(--cyan);font-weight:600;margin-right:6px}
+.section{margin-bottom:56px}
+.section-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;cursor:pointer;user-select:none}
+.section-header .num{font-size:13px;font-weight:700;color:var(--cyan);background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.section-header h2{font-size:22px;font-weight:700;flex:1}
+.section-header .toggle{color:var(--text-tertiary);font-size:12px;transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.section.collapsed .section-content{display:none}
+.section.collapsed .toggle{transform:rotate(-90deg)}
+h3{font-size:17px;font-weight:600;margin:32px 0 12px;color:var(--text);padding-left:12px;border-left:3px solid var(--cyan)}
+h4{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--text-secondary)}
+p{color:var(--text-secondary);margin-bottom:12px;font-size:14.5px}
+strong{color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin:16px 0;backdrop-filter:blur(8px)}
+.card.accent{border-color:rgba(34,211,238,0.15);background:rgba(34,211,238,0.03)}
+.card.green{border-color:rgba(52,211,153,0.15);background:rgba(52,211,153,0.03)}
+.card.red{border-color:rgba(248,113,113,0.15);background:rgba(248,113,113,0.03)}
+.card.amber{border-color:rgba(251,191,36,0.15);background:rgba(251,191,36,0.03)}
+.card.purple{border-color:rgba(167,139,250,0.15);background:rgba(167,139,250,0.03)}
+pre{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:12px 0;font-family:var(--font-mono);font-size:13px;line-height:1.6}
+code{font-family:var(--font-mono);font-size:13px}
+p code,li code{background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-size:12.5px}
+.kw{color:#c084fc}.fn{color:#60a5fa}.str{color:#34d399}.num{color:#fb923c}.cmt{color:rgba(255,255,255,0.25);font-style:italic}.op{color:#f87171}.tag{color:#f87171}.attr{color:#fbbf24}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th{text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface)}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:top}
+tr:hover td{background:var(--surface-hover)}
+ul,ol{padding-left:20px;margin-bottom:12px}
+li{color:var(--text-secondary);font-size:14.5px;margin-bottom:6px}
+li strong{color:var(--text)}
+.checklist{list-style:none;padding-left:0}
+.checklist li{padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;display:flex;gap:10px;align-items:flex-start;transition:background .2s}
+.checklist li:hover{background:var(--surface-hover)}
+.checklist .check{width:18px;height:18px;border:2px solid var(--text-tertiary);border-radius:4px;flex-shrink:0;margin-top:2px}
+.checklist .check-text{flex:1}
+.checklist .check-label{font-weight:600;color:var(--text);font-size:13.5px}
+.checklist .check-desc{font-size:12.5px;color:var(--text-tertiary);margin-top:2px}
+.comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.compare-item{padding:14px 16px;border-radius:8px;font-size:13px}
+.compare-item.good{background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.15)}
+.compare-item.bad{background:rgba(248,113,113,0.05);border:1px solid rgba(248,113,113,0.15)}
+.compare-item .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px}
+.compare-item.good .label{color:var(--green)}
+.compare-item.bad .label{color:var(--red)}
+blockquote{border-left:3px solid var(--cyan);padding:12px 16px;margin:12px 0;background:rgba(34,211,238,0.03);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary);font-size:14px}
+blockquote strong{font-style:normal}
+.iron-law{text-align:center;font-family:var(--font-mono);font-size:14px;font-weight:700;letter-spacing:1px;padding:20px;background:rgba(34,211,238,0.06);border:2px solid rgba(34,211,238,0.2);border-radius:var(--radius);color:var(--cyan);margin:20px 0}
+.tag-pill{font-size:11px;padding:2px 8px;border-radius:100px;font-weight:500;display:inline-block}
+.tag-pill.use{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2)}
+.tag-pill.avoid{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.2)}
+.tag-pill.moderate{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.2)}
+.flow-step{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;position:relative}
+.flow-step:not(:last-child)::after{content:'';position:absolute;left:19px;top:40px;bottom:-8px;width:2px;background:var(--border)}
+.flow-step .step-num{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;z-index:1}
+.flow-step .step-num.s1{background:rgba(34,211,238,0.15);color:var(--cyan);border:1px solid rgba(34,211,238,0.3)}
+.flow-step .step-num.s2{background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3)}
+.flow-step .step-num.s3{background:rgba(167,139,250,0.15);color:var(--purple);border:1px solid rgba(167,139,250,0.3)}
+.flow-step .step-num.s4{background:rgba(251,191,36,0.15);color:var(--amber);border:1px solid rgba(251,191,36,0.3)}
+.flow-step .step-body{flex:1}
+.flow-step .step-title{font-weight:600;font-size:14.5px;margin-bottom:4px}
+.flow-step .step-desc{font-size:13px;color:var(--text-secondary)}
+.sub-collapse summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--text);padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px}
+.sub-collapse summary::-webkit-details-marker{display:none}
+.sub-collapse summary::before{content:'▸';color:var(--cyan);transition:transform .2s;font-size:12px}
+.sub-collapse[open] summary::before{transform:rotate(90deg)}
+.sub-collapse .sub-content{padding:8px 0 8px 16px;border-left:2px solid var(--border);margin-left:6px}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.arch-diagram{margin:24px 0;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto}
+.arch-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.arch-diagram .diagram-title{text-align:center;font-size:14px;font-weight:600;color:var(--cyan);margin-bottom:16px;letter-spacing:.5px}
+footer{border-top:1px solid var(--border);padding:32px 0;text-align:center;color:var(--text-tertiary);font-size:12px}
+@media(max-width:640px){
+.container{padding:0 16px}header{padding:48px 0 32px}
+.comparison{grid-template-columns:1fr}h1{font-size:26px}pre{font-size:11.5px;padding:12px}td,th{padding:8px 10px;font-size:12px}
+.flow-step .step-desc{font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="badge">Hook Injection Deep Dive</div>
+  <h1>Using-Superpowers Hook 注入与技能架构拆解</h1>
+  <p class="subtitle">从 session-start 脚本到技能发现流程的完整注入链路 — 理解如何让 AI 在会话第一秒就接受约束框架</p>
+</header>
+
+<nav class="toc" open>
+  <summary>目录导航</summary>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>会话启动劫持的完整机制</a></li>
+    <li><a href="#s2"><span class="num">02</span>Using-Superpowers SKILL.md 设计解剖</a></li>
+    <li><a href="#s3"><span class="num">03</span>说服原则分析</a></li>
+    <li><a href="#s4"><span class="num">04</span>跨平台适配设计</a></li>
+    <li><a href="#s5"><span class="num">05</span>技能发现与调用的流程机制</a></li>
+    <li><a href="#s6"><span class="num">06</span>可复用的设计模式提取</a></li>
+  </ol>
+</nav>
+
+<!-- ==================== SECTION 1 ==================== -->
+<section class="section" id="s1">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">01</span>
+    <h2>会话启动劫持的完整机制</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 1：Hook 注入全链路时序图</div>
+      <svg viewBox="0 0 780 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#22d3ee"/></marker>
+          <marker id="arrG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#34d399"/></marker>
+          <marker id="arrR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171"/></marker>
+          <linearGradient id="preGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(34,211,238,0.08)"/><stop offset="100%" stop-color="rgba(34,211,238,0.02)"/></linearGradient>
+          <linearGradient id="postGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(52,211,153,0.08)"/><stop offset="100%" stop-color="rgba(52,211,153,0.02)"/></linearGradient>
+        </defs>
+        <!-- Timeline: model thinking boundary -->
+        <line x1="30" y1="340" x2="760" y2="340" stroke="rgba(245,158,11,0.3)" stroke-width="1.5" stroke-dasharray="6,4"/>
+        <text x="770" y="344" text-anchor="end" fill="#fbbf24" font-size="11" font-weight="700">模型思考前 / 后 分界线</text>
+        <text x="30" y="20" fill="rgba(34,211,238,0.5)" font-size="11" font-weight="600">模型思考前 — 注入阶段</text>
+        <text x="30" y="360" fill="rgba(52,211,153,0.5)" font-size="11" font-weight="600">模型思考后 — 约束生效阶段</text>
+        <!-- Pre-thinking background -->
+        <rect x="10" y="30" width="760" height="305" rx="8" fill="url(#preGrad)" stroke="rgba(34,211,238,0.08)" stroke-width="1"/>
+        <!-- Post-thinking background -->
+        <rect x="10" y="350" width="760" height="155" rx="8" fill="url(#postGrad)" stroke="rgba(52,211,153,0.08)" stroke-width="1"/>
+        <!-- Step 1: hooks.json -->
+        <rect x="260" y="50" width="200" height="44" rx="8" fill="rgba(34,211,238,0.1)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="360" y="70" text-anchor="middle" fill="#22d3ee" font-size="12" font-weight="700">hooks.json 匹配事件</text>
+        <text x="360" y="86" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">SessionStart / startup / clear / compact</text>
+        <!-- Annotation right -->
+        <text x="480" y="62" fill="rgba(255,255,255,0.5)" font-size="10">做了什么：注册 Hook 处理器</text>
+        <text x="480" y="78" fill="rgba(255,255,255,0.35)" font-size="9">为什么：监听会话启动事件</text>
+        <text x="480" y="92" fill="rgba(248,113,113,0.5)" font-size="9">缺失后果：无注入，约束框架失效</text>
+        <!-- Arrow 1→2 -->
+        <line x1="360" y1="94" x2="360" y2="120" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr)"/>
+        <!-- Step 2: session-start script -->
+        <rect x="220" y="124" width="280" height="44" rx="8" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="360" y="144" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="700">session-start 脚本执行</text>
+        <text x="360" y="160" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">cat SKILL.md → JSON 转义 → 构造注入内容</text>
+        <!-- Annotation left -->
+        <text x="40" y="136" fill="rgba(255,255,255,0.5)" font-size="10">做了什么：读取 using-superpowers/SKILL.md</text>
+        <text x="40" y="152" fill="rgba(255,255,255,0.35)" font-size="9">为什么：获取技能内容作为注入源</text>
+        <text x="40" y="166" fill="rgba(248,113,113,0.5)" font-size="9">缺失后果：注入内容为空</text>
+        <!-- Arrow 2→3 -->
+        <line x1="360" y1="168" x2="360" y2="194" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr)"/>
+        <!-- Step 3: EXTREMELY_IMPORTANT tag -->
+        <rect x="230" y="198" width="260" height="44" rx="8" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="360" y="218" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">&lt;EXTREMELY_IMPORTANT&gt; 标签包裹</text>
+        <text x="360" y="234" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">"You have superpowers." + SKILL.md 内容</text>
+        <!-- Annotation right -->
+        <text x="510" y="210" fill="rgba(255,255,255,0.5)" font-size="10">做了什么：用权重标签包裹内容</text>
+        <text x="510" y="226" fill="rgba(255,255,255,0.35)" font-size="9">为什么：提升注意力权重</text>
+        <text x="510" y="240" fill="rgba(248,113,113,0.5)" font-size="9">缺失后果：内容被模型忽略</text>
+        <!-- Arrow 3→4 -->
+        <line x1="360" y1="242" x2="360" y2="268" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr)"/>
+        <!-- Step 4: Inject additionalContext -->
+        <rect x="220" y="272" width="280" height="44" rx="8" fill="rgba(34,211,238,0.1)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="360" y="292" text-anchor="middle" fill="#22d3ee" font-size="12" font-weight="700">注入 additionalContext</text>
+        <text x="360" y="308" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">平台检测 → 输出对应 JSON 格式 → 系统提示词</text>
+        <!-- Annotation left -->
+        <text x="40" y="284" fill="rgba(255,255,255,0.5)" font-size="10">做了什么：输出 JSON 到 stdout</text>
+        <text x="40" y="300" fill="rgba(255,255,255,0.35)" font-size="9">为什么：async:false 确保同步完成</text>
+        <text x="40" y="314" fill="rgba(248,113,113,0.5)" font-size="9">缺失后果：Claude 可能在注入前回复</text>
+        <!-- Arrow across boundary -->
+        <line x1="360" y1="316" x2="360" y2="375" stroke="#fbbf24" stroke-width="2" marker-end="url(#arr)"/>
+        <!-- Step 5: Model starts generating -->
+        <rect x="230" y="379" width="260" height="44" rx="8" fill="rgba(52,211,153,0.12)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="360" y="399" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">模型生成第一个 token</text>
+        <text x="360" y="415" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">此时 using-superpowers 已在系统提示词中</text>
+        <!-- Annotation right -->
+        <text x="510" y="391" fill="rgba(255,255,255,0.5)" font-size="10">做了什么：Claude 看到约束框架</text>
+        <text x="510" y="407" fill="rgba(255,255,255,0.35)" font-size="9">为什么：在回复前就建立行为约束</text>
+        <text x="510" y="421" fill="rgba(52,211,153,0.6)" font-size="9">结果：技能检查优先于任何回复</text>
+        <!-- Arrow to step 6 -->
+        <line x1="360" y1="423" x2="360" y2="455" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrG)"/>
+        <!-- Step 6: Constraint active -->
+        <rect x="240" y="459" width="240" height="36" rx="8" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="360" y="481" text-anchor="middle" fill="#34d399" font-size="11" font-weight="600">约束框架持续生效 ✓</text>
+      </svg>
+    </div>
+
+    <h3>1.1 注入链路全景</h3>
+    <p>整个注入过程是一条从操作系统到 LLM 系统提示词的链路：</p>
+
+    <div class="flow-step">
+      <div class="step-num s1">1</div>
+      <div class="step-body">
+        <div class="step-title">hooks.json — 注册 Hook</div>
+        <div class="step-desc">Claude Code / Cursor 在插件加载时读取 <code>hooks.json</code>，注册 <code>SessionStart</code> 事件的处理器。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s1">2</div>
+      <div class="step-body">
+        <div class="step-title">session-start 脚本 — 读取 + 构造 JSON</div>
+        <div class="step-desc">Shell 脚本读取 SKILL.md 内容，做 JSON 转义，用 <code>&lt;EXTREMELY-IMPORTANT&gt;</code> 标签包裹，输出为平台特定的 JSON 格式。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s1">3</div>
+      <div class="step-body">
+        <div class="step-title">Claude Code / Cursor — 注入系统提示词</div>
+        <div class="step-desc">平台将 JSON 中的 <code>additionalContext</code> 字段注入到当前会话的系统提示词中。Claude 在回复任何用户消息之前就能看到这段内容。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">4</div>
+      <div class="step-body">
+        <div class="step-title">using-superpowers SKILL.md — 约束框架生效</div>
+        <div class="step-desc">Claude 看到被 <code>&lt;EXTREMELY-IMPORTANT&gt;</code> 包裹的技能内容，开始遵守其中的规则：在回复前检查技能、宣布技能使用等。</div>
+      </div>
+    </div>
+
+    <h3>1.2 hooks.json 注册文件解析</h3>
+    <p><strong>Claude Code 版（hooks.json）：</strong></p>
+    <pre><code>{
+  <span class="attr">"hooks"</span>: {
+    <span class="attr">"SessionStart"</span>: [                        <span class="cmt">// 监听会话启动事件</span>
+      {
+        <span class="attr">"matcher"</span>: <span class="str">"startup|clear|compact"</span>, <span class="cmt">// 匹配：新会话、清屏、压缩上下文</span>
+        <span class="attr">"hooks"</span>: [
+          {
+            <span class="attr">"type"</span>: <span class="str">"command"</span>,               <span class="cmt">// 执行 shell 命令</span>
+            <span class="attr">"command"</span>: <span class="str">"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd session-start"</span>,
+            <span class="attr">"async"</span>: <span class="kw">false</span>                   <span class="cmt">// 同步执行：必须等脚本完成才继续</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+    <p>关键设计：<code>"async": false</code> 确保脚本在 Claude 回复第一条消息之前完成执行。如果设为 true，Claude 可能在技能注入之前就开始回复，导致约束框架失效。</p>
+
+    <p><strong>Cursor 版（hooks-cursor.json）：</strong></p>
+    <pre><code>{
+  <span class="attr">"version"</span>: <span class="num">1</span>,
+  <span class="attr">"hooks"</span>: {
+    <span class="attr">"sessionStart"</span>: [                      <span class="cmt">// 注意：驼峰命名，不是 PascalCase</span>
+      {
+        <span class="attr">"command"</span>: <span class="str">"./hooks/session-start"</span> <span class="cmt">// 直接调用 bash 脚本</span>
+      }
+    ]
+  }
+}</code></pre>
+    <p>差异：Cursor 使用 <code>sessionStart</code>（驼峰），Claude Code 使用 <code>SessionStart</code>（PascalCase）。Cursor 不需要 matcher，因为 <code>sessionStart</code> 事件本身就只在会话启动时触发一次。</p>
+
+    <h3>1.3 session-start 脚本逐行解析</h3>
+    <pre><code>#!/usr/bin/env bash
+<span class="cmt"># SessionStart hook for superpowers plugin</span>
+
+<span class="kw">set</span> -euo pipefail              <span class="cmt"># 严格模式：错误即退出、未定义变量即退出、管道错误即退出</span>
+
+<span class="cmt"># ── 第一步：确定插件根目录 ──</span>
+SCRIPT_DIR=<span class="str">"$(cd "$(dirname "$0")" && pwd)"</span>
+PLUGIN_ROOT=<span class="str">"$(cd "${SCRIPT_DIR}/.." && pwd)"</span>
+
+<span class="cmt"># ── 第二步：检查旧版 skills 目录（兼容性警告） ──</span>
+warning_message=<span class="str">""</span>
+legacy_skills_dir=<span class="str">"${HOME}/.config/superpowers/skills"</span>
+<span class="kw">if</span> [ -d <span class="str">"$legacy_skills_dir"</span> ]; <span class="kw">then</span>
+    warning_message=<span class="str">"\n\n&lt;important-reminder&gt;IN YOUR FIRST REPLY
+    AFTER SEEING THIS MESSAGE YOU MUST TELL THE USER:⚠️
+    **WARNING:** Superpowers now uses Claude Code's skills system..."</span>
+<span class="kw">fi</span>
+
+<span class="cmt"># ── 第三步：读取 using-superpowers SKILL.md 内容 ──</span>
+using_superpowers_content=$(cat <span class="str">"${PLUGIN_ROOT}/skills/using-superpowers/SKILL.md"</span>)
+
+<span class="cmt"># ── 第四步：JSON 转义函数 ──</span>
+<span class="cmt"># 处理反斜杠、引号、换行、回车、制表符</span>
+<span class="cmt"># 使用 bash 参数替换而非逐字符循环（性能优化，C 级别速度）</span>
+escape_for_json() {
+    local s=<span class="str">"$1"</span>
+    s=<span class="str">"${s//\\/\\\\}"</span>      <span class="cmt"># \ → \\</span>
+    s=<span class="str">"${s//\"/\\\"}"</span>      <span class="cmt"># " → \"</span>
+    s=<span class="str">"${s//$'\n'/\\n}"</span>    <span class="cmt"># 换行 → \n</span>
+    s=<span class="str">"${s//$'\r'/\\r}"</span>    <span class="cmt"># 回车 → \r</span>
+    s=<span class="str">"${s//$'\t'/\\t}"</span>    <span class="cmt"># 制表符 → \t</span>
+    printf <span class="str">'%s'</span> <span class="str">"$s"</span>
+}
+
+<span class="cmt"># ── 第五步：构造注入内容 ──</span>
+<span class="cmt"># 关键：用 &lt;EXTREMELY-IMPORTANT&gt; 标签包裹整个技能内容</span>
+session_context=<span class="str">"&lt;EXTREMELY_IMPORTANT&gt;\n
+You have superpowers.\n\n
+**Below is the full content of your 'superpowers:using-superpowers'
+skill - your introduction to using skills. For all other skills,
+use the 'Skill' tool:**\n\n
+${using_superpowers_escaped}\n\n
+${warning_escaped}\n
+&lt;/EXTREMELY_IMPORTANT&gt;"</span>
+
+<span class="cmt"># ── 第六步：平台检测 + JSON 输出 ──</span>
+<span class="kw">if</span> [ -n <span class="str">"${CURSOR_PLUGIN_ROOT:-}"</span> ]; <span class="kw">then</span>
+  <span class="cmt"># Cursor: 使用 additional_context（蛇形命名）</span>
+  printf <span class="str">'{"additional_context": "%s"}\n'</span> <span class="str">"$session_context"</span>
+<span class="kw">elif</span> [ -n <span class="str">"${CLAUDE_PLUGIN_ROOT:-}"</span> ] && [ -z <span class="str">"${COPILOT_CLI:-}"</span> ]; <span class="kw">then</span>
+  <span class="cmt"># Claude Code: 使用 hookSpecificOutput.additionalContext（嵌套结构）</span>
+  printf <span class="str">'{"hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "%s"}}\n'</span> <span class="str">"$session_context"</span>
+<span class="kw">else</span>
+  <span class="cmt"># Copilot CLI 或未知平台：SDK 标准格式（驼峰命名）</span>
+  printf <span class="str">'{"additionalContext": "%s"}\n'</span> <span class="str">"$session_context"</span>
+<span class="kw">fi</span>
+
+exit 0</code></pre>
+
+    <h3>1.4 JSON 输出格式的平台差异</h3>
+    <table>
+      <thead><tr><th>平台</th><th>环境变量</th><th>JSON 结构</th><th>字段命名</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Cursor</strong></td>
+          <td><code>CURSOR_PLUGIN_ROOT</code></td>
+          <td><code>{"additional_context": "..."}</code></td>
+          <td>蛇形 <code>additional_context</code></td>
+        </tr>
+        <tr>
+          <td><strong>Claude Code</strong></td>
+          <td><code>CLAUDE_PLUGIN_ROOT</code>（无 <code>COPILOT_CLI</code>）</td>
+          <td><code>{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "..."}}</code></td>
+          <td>嵌套 + 驼峰 <code>additionalContext</code></td>
+        </tr>
+        <tr>
+          <td><strong>Copilot CLI</strong></td>
+          <td><code>COPILOT_CLI=1</code></td>
+          <td><code>{"additionalContext": "..."}</code></td>
+          <td>SDK 标准 + 驼峰</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>1.5 为什么用 Hook 注入而不是写在 Skill 文件或 system prompt 里？</h3>
+    <div class="card accent">
+      <p><strong>核心原因：时机控制 + 保证可见性。</strong></p>
+      <ol>
+        <li><strong>Hook 注入发生在会话启动时</strong> — Claude 的第一条回复之前，约束框架就已经在系统提示词中了。这比依赖 Claude "主动发现"技能更可靠。</li>
+        <li><strong>技能文件只在被调用时加载</strong> — 如果把 using-superpowers 的内容只放在 SKILL.md 里，Claude 需要先知道要调用它才能看到它。这是一个鸡生蛋的问题：技能本身教 Claude "如何使用技能"，但如果 Claude 不知道这个技能存在，就不会调用它。</li>
+        <li><strong>system prompt 权重低于 Hook 输出</strong> — Hook 输出的 <code>additionalContext</code> 被注入到系统提示词中，且用 <code>&lt;EXTREMELY-IMPORTANT&gt;</code> 标签标记，这比普通 system prompt 文本有更高的注意力权重。</li>
+        <li><strong>CLAUDE.md 写入会与用户配置冲突</strong> — 用户可能有自己的 CLAUDE.md 配置。插件不应该修改用户的配置文件。Hook 是非侵入式的。</li>
+        <li><strong>跨平台一致性</strong> — Hook 脚本通过环境变量检测平台，输出对应格式的 JSON。同一套逻辑适配所有平台。</li>
+      </ol>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 2 ==================== -->
+<section class="section collapsed" id="s2">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">02</span>
+    <h2>Using-Superpowers SKILL.md 设计解剖</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 2：技能发现与调用决策树</div>
+      <svg viewBox="0 0 880 620" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="rgba(255,255,255,0.3)"/></marker>
+          <marker id="a2g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#34d399"/></marker>
+          <marker id="a2r" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f87171"/></marker>
+        </defs>
+        <!-- Node A: Start (doublecircle) -->
+        <circle cx="440" cy="40" r="30" fill="none" stroke="#22d3ee" stroke-width="2"/>
+        <circle cx="440" cy="40" r="24" fill="none" stroke="#22d3ee" stroke-width="1"/>
+        <text x="440" y="44" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="700">用户消息到达</text>
+        <!-- Arrow A→B -->
+        <line x1="440" y1="70" x2="440" y2="95" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" marker-end="url(#a2)"/>
+        <!-- Node B: Decision diamond - EnterPlanMode? -->
+        <polygon points="440,100 560,150 440,200 320,150" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="440" y="147" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">即将进入</text>
+        <text x="440" y="161" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">EnterPlanMode?</text>
+        <!-- Arrow B→C (no) -->
+        <line x1="560" y1="150" x2="630" y2="150" stroke="rgba(255,255,255,0.2)" stroke-width="1" marker-end="url(#a2)"/>
+        <text x="590" y="143" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">no</text>
+        <!-- Arrow B→D (yes) -->
+        <line x1="440" y1="200" x2="440" y2="230" stroke="rgba(255,255,255,0.2)" stroke-width="1" marker-end="url(#a2)"/>
+        <text x="455" y="220" fill="rgba(255,255,255,0.35)" font-size="10">yes</text>
+        <!-- Node D: Decision - Already brainstormed? -->
+        <polygon points="440,235 580,290 440,345 300,290" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="440" y="287" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">已经过</text>
+        <text x="440" y="301" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">brainstorming?</text>
+        <!-- Arrow D→E (no) -->
+        <line x1="580" y1="290" x2="670" y2="290" stroke="#f87171" stroke-width="1.5" marker-end="url(#a2r)"/>
+        <text x="620" y="283" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">no</text>
+        <!-- Node E: Action - Invoke brainstorming -->
+        <rect x="672" y="268" width="190" height="44" rx="8" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="767" y="286" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">调用 brainstorming</text>
+        <text x="767" y="302" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">强制设计 → 然后才能规划</text>
+        <!-- Arrow D→merge1 (yes) -->
+        <line x1="440" y1="345" x2="440" y2="380" stroke="rgba(255,255,255,0.2)" stroke-width="1" marker-end="url(#a2)"/>
+        <text x="455" y="367" fill="rgba(255,255,255,0.35)" font-size="10">yes</text>
+        <!-- Node C merge point → Node F -->
+        <line x1="630" y1="150" x2="630" y2="420" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="630" y1="420" x2="570" y2="420" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+        <!-- Node F: Decision - Might any skill apply? (main decision) -->
+        <polygon points="440,390 610,445 440,500 270,445" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="2"/>
+        <text x="440" y="437" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">是否有技能可能适用？</text>
+        <text x="440" y="455" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">"even 1% chance"</text>
+        <!-- Key rule annotation -->
+        <rect x="640" y="425" width="220" height="36" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="1"/>
+        <text x="750" y="440" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">关键规则: 1% chance = must invoke</text>
+        <text x="750" y="455" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">哪怕只有 1% 可能性也必须调用</text>
+        <!-- Arrow F→G (yes, even 1%) -->
+        <line x1="440" y1="500" x2="440" y2="530" stroke="#34d399" stroke-width="1.5" marker-end="url(#a2g)"/>
+        <text x="460" y="520" fill="#34d399" font-size="10" font-weight="600">yes</text>
+        <!-- Node G: Action - Invoke Skill tool -->
+        <rect x="340" y="534" width="200" height="38" rx="8" fill="rgba(52,211,153,0.12)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="440" y="557" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">调用 Skill 工具</text>
+        <!-- Arrow G→H -->
+        <line x1="540" y1="553" x2="600" y2="553" stroke="#34d399" stroke-width="1.5" marker-end="url(#a2g)"/>
+        <!-- Node H: Action - Announce -->
+        <rect x="604" y="534" width="200" height="38" rx="8" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1"/>
+        <text x="704" y="550" text-anchor="middle" fill="#34d399" font-size="11" font-weight="600">宣布: "Using [skill]"</text>
+        <text x="704" y="564" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">Commitment 原则</text>
+        <!-- Arrow F→I (definitely not) -->
+        <line x1="270" y1="445" x2="170" y2="445" stroke="rgba(255,255,255,0.2)" stroke-width="1" marker-end="url(#a2)"/>
+        <text x="215" y="438" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">definitely not</text>
+        <!-- Node I: Terminal - Respond directly -->
+        <rect x="20" y="428" width="150" height="34" rx="8" fill="rgba(248,113,113,0.08)" stroke="#f87171" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="95" y="449" text-anchor="middle" fill="rgba(248,113,113,0.7)" font-size="11" font-weight="600">直接回复</text>
+        <!-- Arrow H→J (Has checklist?) -->
+        <line x1="704" y1="572" x2="704" y2="595" stroke="#34d399" stroke-width="1" marker-end="url(#a2g)"/>
+        <!-- Node J: Small decision -->
+        <polygon points="704,598 790,620 704,642 618,620" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="704" y="624" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">有 checklist?</text>
+        <!-- Legend -->
+        <rect x="20" y="60" width="180" height="100" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="30" y="80" fill="rgba(255,255,255,0.5)" font-size="10" font-weight="600">图例</text>
+        <polygon points="40,95 60,105 40,115 20,105" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="72" y="109" fill="rgba(255,255,255,0.4)" font-size="9">决策节点（amber）</text>
+        <rect x="20" y="122" width="40" height="16" rx="4" fill="rgba(52,211,153,0.12)" stroke="#34d399" stroke-width="1"/>
+        <text x="72" y="134" fill="rgba(255,255,255,0.4)" font-size="9">动作节点（green）</text>
+        <rect x="20" y="145" width="40" height="16" rx="4" fill="rgba(248,113,113,0.08)" stroke="#f87171" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="72" y="157" fill="rgba(255,255,255,0.4)" font-size="9">终止节点（red）</text>
+      </svg>
+    </div>
+
+    <h3>2.1 整体架构</h3>
+    <p>SKILL.md 的结构从上到下形成四个递进层次：</p>
+    <table>
+      <thead><tr><th>层次</th><th>内容</th><th>设计目的</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>子代理过滤器</strong></td>
+          <td><code>&lt;SUBAGENT-STOP&gt;</code> 标签</td>
+          <td>防止子代理重复加载整个技能框架，浪费 token</td>
+        </tr>
+        <tr>
+          <td><strong>绝对命令层</strong></td>
+          <td><code>&lt;EXTREMELY-IMPORTANT&gt;</code> + Authority 语言</td>
+          <td>建立不可违反的行为约束：技能必须被调用</td>
+        </tr>
+        <tr>
+          <td><strong>优先级规则层</strong></td>
+          <td>Instruction Priority + How to Access + Platform Adaptation</td>
+          <td>解决冲突：用户指令 > 技能 > 系统默认行为</td>
+        </tr>
+        <tr>
+          <td><strong>操作流程层</strong></td>
+          <td>流程图 + 红旗表 + 技能优先级 + 技能类型</td>
+          <td>具体的决策流程和防御措施</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.2 &lt;SUBAGENT-STOP&gt; 标签</h3>
+    <pre><code><span class="tag">&lt;SUBAGENT-STOP&gt;</span>
+If you were dispatched as a subagent to execute a specific task,
+skip this skill.
+<span class="tag">&lt;/SUBAGENT-STOP&gt;</span></code></pre>
+    <p><strong>设计意图：</strong>当主 agent 通过 <code>Task</code> 工具派遣子代理时，子代理会继承当前会话的系统提示词（包含 Hook 注入的 using-superpowers 内容）。但子代理的任务通常是执行特定操作（如代码审查、测试），不需要再检查技能。这个标签告诉子代理："你是被派来干活的，跳过技能发现流程。"</p>
+    <p><strong>Token 节省：</strong>using-superpowers 的完整内容相当长。如果每个子代理都执行技能发现流程，会浪费大量 token 在重复的技能检查上。这个标签是 Context Efficiency（上下文效率）的关键优化。</p>
+
+    <h3>2.3 &lt;EXTREMELY-IMPORTANT&gt; 标签</h3>
+    <pre><code><span class="tag">&lt;EXTREMELY-IMPORTANT&gt;</span>
+If you think there is even a <span class="num">1%</span> chance a skill might apply
+to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE.
+YOU MUST USE IT.
+
+This is not negotiable. This is not optional.
+You cannot rationalize your way out of this.
+<span class="tag">&lt;/EXTREMELY-IMPORTANT&gt;</span></code></pre>
+    <p><strong>设计意图：</strong>这个标签不是 Superpowers 自创的 — 它利用了 LLM 训练数据中 XML 标签的语义权重。在 RLHF（基于人类反馈的强化学习）训练中，被标记为 "important" 或 "critical" 的内容在模型注意力机制中获得了更高的权重。<code>&lt;EXTREMELY-IMPORTANT&gt;</code> 是这种模式的极端版本。</p>
+    <p><strong>为什么有效：</strong>LLM 在推理时会对 XML 标签内的内容给予更多注意力。这不是"魔法"，而是训练数据中<strong>统计模式的重现</strong> — 在大量技术文档、系统配置、安全策略中，被特殊标记的内容确实是更重要的。模型学会了这种关联。</p>
+
+    <h3>2.4 "even 1% chance" — 为什么是 1%？</h3>
+    <blockquote>
+      <strong>"If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill."</strong>
+    </blockquote>
+    <p><strong>设计决策分析：</strong></p>
+    <div class="card amber">
+      <p><strong>如果用 50%：</strong>"如果有一半概率技能适用，就调用它。" — 这给了 agent 巨大的合理化空间。Agent 可以说"我觉得只有 40% 概率适用，所以不调用"。这正是 Superpowers 要防止的。</p>
+      <p style="margin-top:8px"><strong>如果用 1%：</strong>"哪怕只有 1% 的可能性，也必须调用。" — 这消除了"概率不够高"这类借口。即使 agent 对技能适用性不确定，也被要求先调用再看。</p>
+      <p style="margin-top:8px"><strong>Scarcity 原则的极端应用：</strong>"even 1%" 是稀缺性的量化表达 — 它将"可能适用"的门槛降到几乎为零。配合后文的 "If an invoked skill turns out to be wrong for the situation, you don't need to use it"（如果调用的技能不适用，你不需要使用它），形成了一个低成本的调用决策：调用错了没关系，但不调用就不行。</p>
+    </div>
+
+    <h3>2.5 技能优先级设计</h3>
+    <pre><code><span class="str">When multiple skills could apply, use this order:
+
+1. Process skills first (brainstorming, debugging)
+   - these determine HOW to approach the task
+2. Implementation skills second (frontend-design, mcp-builder)
+   - these guide execution</span></code></pre>
+    <p><strong>设计意图：</strong>这是一个<strong>依赖排序</strong>而非重要性排序。Process skills（流程技能）决定了"怎么做"，Implementation skills（实现技能）决定了"做什么"。</p>
+    <div class="comparison">
+      <div class="compare-item good">
+        <div class="label">正确顺序</div>
+        <pre style="margin:0"><code>"Let's build X"
+→ brainstorming first (决定怎么做)
+→ frontend-design second (执行设计)</code></pre>
+      </div>
+      <div class="compare-item bad">
+        <div class="label">错误顺序</div>
+        <pre style="margin:0"><code>"Let's build X"
+→ frontend-design first (直接开始执行)
+→ 没有设计阶段，方向可能错误</code></pre>
+      </div>
+    </div>
+
+    <h3>2.6 技能类型：Rigid vs Flexible</h3>
+    <pre><code><span class="str">Rigid (TDD, debugging): Follow exactly. Don't adapt away discipline.
+Flexible (patterns): Adapt principles to context.
+The skill itself tells you which.</span></code></pre>
+    <p><strong>设计意图：</strong>这个分类告诉 Claude <strong>什么时候可以灵活解释</strong>，什么时候必须严格遵守。Rigid 技能（如 TDD）的规则是经过压力测试验证的 — 任何"灵活适应"都是合理化的借口。Flexible 技能（如设计模式）本身就是为了适应不同上下文而设计的。</p>
+
+    <h3>2.7 红旗表完整解读</h3>
+    <table>
+      <thead><tr><th>偷懒想法（Thought）</th><th>现实反击（Reality）</th><th>底层机制</th></tr></thead>
+      <tbody>
+        <tr><td>"This is just a simple question"<br><span style="font-size:11px;color:var(--text-tertiary)">"这只是个简单问题"</span></td><td>Questions are tasks. Check for skills.<br><span style="font-size:11px;color:var(--text-tertiary)">问题也是任务。检查技能。</span></td><td>堵住"问题不算任务"的借口</td></tr>
+        <tr><td>"I need more context first"<br><span style="font-size:11px;color:var(--text-tertiary)">"我需要先了解更多上下文"</span></td><td>Skill check comes BEFORE clarifying questions.<br><span style="font-size:11px;color:var(--text-tertiary)">技能检查在澄清问题之前。</span></td><td>堵住"先问再查"的顺序颠倒</td></tr>
+        <tr><td>"Let me explore the codebase first"<br><span style="font-size:11px;color:var(--text-tertiary)">"让我先探索一下代码库"</span></td><td>Skills tell you HOW to explore. Check first.<br><span style="font-size:11px;color:var(--text-tertiary)">技能告诉你如何探索。先检查。</span></td><td>堵住"先动手再看规则"</td></tr>
+        <tr><td>"I can check git/files quickly"<br><span style="font-size:11px;color:var(--text-tertiary)">"我可以快速查看 git/文件"</span></td><td>Files lack conversation context. Check for skills.<br><span style="font-size:11px;color:var(--text-tertiary)">文件缺少对话上下文。检查技能。</span></td><td>堵住"我直接看代码就行"</td></tr>
+        <tr><td>"This doesn't need a formal skill"<br><span style="font-size:11px;color:var(--text-tertiary)">"这不需要正式的技能"</span></td><td>If a skill exists, use it.<br><span style="font-size:11px;color:var(--text-tertiary)">如果技能存在，就用它。</span></td><td>堵住"过度判断"的合理化</td></tr>
+        <tr><td>"I remember this skill"<br><span style="font-size:11px;color:var(--text-tertiary)">"我记得这个技能"</span></td><td>Skills evolve. Read current version.<br><span style="font-size:11px;color:var(--text-tertiary)">技能会演进。读取当前版本。</span></td><td>堵住"凭记忆跳过阅读"</td></tr>
+        <tr><td>"This doesn't count as a task"<br><span style="font-size:11px;color:var(--text-tertiary)">"这不算一个任务"</span></td><td>Action = task. Check for skills.<br><span style="font-size:11px;color:var(--text-tertiary)">行动 = 任务。检查技能。</span></td><td>重新定义"任务"的边界</td></tr>
+        <tr><td>"The skill is overkill"<br><span style="font-size:11px;color:var(--text-tertiary)">"技能太重了"</span></td><td>Simple things become complex. Use it.<br><span style="font-size:11px;color:var(--text-tertiary)">简单的事也会变复杂。用它。</span></td><td>堵住"杀鸡焉用牛刀"心态</td></tr>
+        <tr><td>"I'll just do this one thing first"<br><span style="font-size:11px;color:var(--text-tertiary)">"我先做这一件事"</span></td><td>Check BEFORE doing anything.<br><span style="font-size:11px;color:var(--text-tertiary)">做任何事之前先检查。</span></td><td>堵住"先做再说"的冲动</td></tr>
+        <tr><td>"This feels productive"<br><span style="font-size:11px;color:var(--text-tertiary)">"感觉很有生产力"</span></td><td>Undisciplined action wastes time. Skills prevent this.<br><span style="font-size:11px;color:var(--text-tertiary)">无纪律的行动浪费时间。技能防止这一点。</span></td><td>堵住"忙碌感 = 生产力"的错觉</td></tr>
+        <tr><td>"I know what that means"<br><span style="font-size:11px;color:var(--text-tertiary)">"我知道那是什么意思"</span></td><td>Knowing the concept ≠ using the skill. Invoke it.<br><span style="font-size:11px;color:var(--text-tertiary)">知道概念 ≠ 使用技能。调用它。</span></td><td>堵住"概念理解代替实际使用"</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2.8 流程图（digraph）在技能中的作用</h3>
+    <p>using-superpowers 使用 Graphviz dot 语言绘制决策流程图：</p>
+    <pre><code><span class="kw">digraph</span> skill_flow {
+    <span class="str">"User message received"</span>     [shape=<span class="kw">doublecircle</span>];  <span class="cmt">// 起点：用户消息</span>
+    <span class="str">"About to EnterPlanMode?"</span>    [shape=<span class="kw">doublecircle</span>];  <span class="cmt">// 特殊检查点</span>
+    <span class="str">"Already brainstormed?"</span>     [shape=<span class="kw">diamond</span>];      <span class="cmt">// 判断：是否已头脑风暴</span>
+    <span class="str">"Might any skill apply?"</span>     [shape=<span class="kw">diamond</span>];      <span class="cmt"># 判断：是否有技能适用</span>
+    <span class="str">"Has checklist?"</span>             [shape=<span class="kw">diamond</span>];      <span class="cmt"># 判断：是否有检查清单</span>
+
+    <span class="str">"User message received"</span> -> <span class="str">"Might any skill apply?"</span>;
+    <span class="str">"Might any skill apply?"</span> -> <span class="str">"Invoke Skill tool"</span>
+         [label=<span class="str">"yes, even 1%"</span>];  <span class="cmt"># 关键标注：即使只有 1%</span>
+}</code></pre>
+    <p><strong>为什么用图而不是纯文字：</strong></p>
+    <ul>
+      <li><strong>消歧义：</strong>流程图中的分支（diamond 节点）和边标签（"yes, even 1%"）消除了文字描述中的歧义。文字说"检查技能"，图明确说"先检查，再回复"。</li>
+      <li><strong>顺序强制：</strong>图中的节点连接明确了执行顺序。例如 "Invoke Skill tool → Announce → Has checklist? → Follow skill exactly" 是一条不可跳过的链路。</li>
+      <li><strong>视觉锚点：</strong>当 Claude 需要做决策时，流程图比文字列表更容易快速扫描和参考。diamond 节点明确标记了"在这里做判断"。</li>
+    </ul>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 3 ==================== -->
+<section class="section collapsed" id="s3">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">03</span>
+    <h2>说服原则分析</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <h3>3.1 Authority（权威）的具体应用点</h3>
+    <p>using-superpowers 是 Authority 原则的<strong>极端应用</strong>案例。以下是四个层次的权威语言：</p>
+
+    <div class="card red">
+      <table>
+        <thead><tr><th>原文</th><th>中文</th><th>权威强度</th><th>设计目的</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>you ABSOLUTELY MUST invoke the skill</code></td>
+            <td>你绝对必须调用技能</td>
+            <td><span class="tag-pill avoid">最强</span></td>
+            <td>全大写 + ABSOLUTELY = 无条件命令</td>
+          </tr>
+          <tr>
+            <td><code>YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.</code></td>
+            <td>你没有选择。你必须使用它。</td>
+            <td><span class="tag-pill avoid">最强</span></td>
+            <td>全大写 + "没有选择" = 消除决策空间</td>
+          </tr>
+          <tr>
+            <td><code>This is not negotiable. This is not optional.</code></td>
+            <td>这不可谈判。这不是可选的。</td>
+            <td><span class="tag-pill avoid">极强</span></td>
+            <td>平行否定结构 = 封堵所有退路</td>
+          </tr>
+          <tr>
+            <td><code>You cannot rationalize your way out of this.</code></td>
+            <td>你无法用合理化来逃避这个。</td>
+            <td><span class="tag-pill avoid">极强</span></td>
+            <td>预判并否定最可能的违规方式</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>底层机制：为什么 Authority 语言在 LLM 上有效？</strong></p>
+    <div class="card accent">
+      <p>LLM 的训练数据中包含大量权威语言的统计模式：</p>
+      <ol>
+        <li><strong>系统提示词/配置文件：</strong>在训练数据中，全大写、命令式语言大量出现在系统配置、安全策略、API 文档中。模型学会了将这些语言模式与"必须遵循的指令"关联。</li>
+        <li><strong>RLHF 训练：</strong>在 RLHF 中，遵循标记为"重要"或"必须"的指令会获得更高的奖励。模型被优化为对权威语言产生更高的遵从概率。</li>
+        <li><strong>XML 标签权重：</strong><code>&lt;EXTREMELY-IMPORTANT&gt;</code> 在技术文档中通常标记关键配置或安全警告。模型的注意力机制对这些标记内容分配更多计算资源。</li>
+        <li><strong>全大写效应：</strong>全大写在英文文本中是"强调/警告"的标准方式。模型对全大写 token 序列的注意力分布不同于正常文本。</li>
+      </ol>
+      <p style="margin-top:8px">这不是"欺骗"模型 — 而是利用模型<strong>已经学会的语义关联</strong>来确保关键指令被正确处理。就像你在代码中用 <code>!!!</code> 注释标记关键 bug 一样。</p>
+    </div>
+
+    <h3>3.2 Commitment（承诺）</h3>
+    <p>流程图中明确要求：</p>
+    <pre><code><span class="str">"Invoke Skill tool"</span> -> <span class="str">"Announce: 'Using [skill] to [purpose]'"</span></code></pre>
+    <p><strong>设计原理：</strong>要求 agent 公开声明"我正在使用 X 技能来做 Y"触发了 Commitment 原则 — 一旦声明了，agent 会倾向于保持一致。这比默默使用技能然后可能中途放弃要可靠得多。</p>
+    <p>配合 TodoWrite 追踪：</p>
+    <pre><code><span class="str">"Has checklist?" -> "Create TodoWrite todo per item"</span></code></pre>
+    <p>检查清单 + TodoWrite 追踪 = 双重承诺机制。agent 不仅说了"我要做"，还创建了可追踪的任务列表。跳过任何步骤都会在 TodoWrite 中留下未完成项，产生视觉上的不一致。</p>
+
+    <h3>3.3 Social Proof（社会证明）</h3>
+    <pre><code><span class="str">Checklists without TodoWrite tracking = steps get skipped. Every time.</span></code></pre>
+    <p><strong>"Every time"（每一次）</strong>是 Social Proof 的极端形式 — 它将一个观察结果表述为普遍规律，暗示"所有人都知道这一点"。"X without Y = failure" 模式也是 Social Proof：它不是建议，而是对失败模式的客观描述。</p>
+
+    <h3>3.4 Scarcity（稀缺性）</h3>
+    <pre><code><span class="str">BEFORE any response or action</span>       <span class="cmt">// 在任何回复或行动之前</span>
+<span class="str">even 1% chance</span>                         <span class="cmt">// 哪怕只有 1% 的可能性</span></code></pre>
+    <p>"BEFORE any response" 创建了一个<strong>时间锚点</strong> — 技能检查必须在回复之前完成，不能延后。"even 1%" 将稀缺性量化为几乎为零的阈值，消除了"不够确定"的借口。</p>
+
+    <h3>3.5 为什么没有使用 Liking？</h3>
+    <div class="card purple">
+      <p><strong>Liking 原则会引入 sycophancy（谄媚）。</strong>如果 using-superpowers 使用友善语言（"Please check for skills"、"It would be great if you could..."），agent 可能会在用户看起来不想要技能时选择"讨好用户"而不是遵循规则。</p>
+      <p style="margin-top:8px">using-superpowers 是一个<strong>元技能</strong> — 它的职责是确保所有其他技能被正确调用。如果它自身不够强硬，整个技能体系就会崩溃。这里需要的不是"友好建议"，而是"不可违反的框架"。</p>
+      <p style="margin-top:8px">值得注意的是，Instruction Priority 部分提到了"User instructions always take precedence"（用户指令始终优先）。这不是 Liking — 这是明确声明用户拥有最终控制权。这是 Authority 的正确应用：用权威语言定义边界，而不是用友善语言模糊边界。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 4 ==================== -->
+<section class="section collapsed" id="s4">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">04</span>
+    <h2>跨平台适配设计</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <h3>4.1 四大平台工具名映射</h3>
+    <table>
+      <thead><tr><th>功能</th><th>Claude Code</th><th>Cursor</th><th>Copilot CLI</th><th>Gemini CLI</th></tr></thead>
+      <tbody>
+        <tr><td>读取文件</td><td><code>Read</code></td><td><code>view</code></td><td><code>view</code></td><td><code>read_file</code></td></tr>
+        <tr><td>写入文件</td><td><code>Write</code></td><td><code>create</code></td><td><code>create</code></td><td><code>write_file</code></td></tr>
+        <tr><td>编辑文件</td><td><code>Edit</code></td><td><code>edit</code></td><td><code>edit</code></td><td><code>replace</code></td></tr>
+        <tr><td>运行命令</td><td><code>Bash</code></td><td><code>bash</code></td><td><code>bash</code></td><td><code>run_shell_command</code></td></tr>
+        <tr><td>搜索内容</td><td><code>Grep</code></td><td><code>grep</code></td><td><code>grep</code></td><td><code>grep_search</code></td></tr>
+        <tr><td>搜索文件</td><td><code>Glob</code></td><td><code>glob</code></td><td><code>glob</code></td><td><code>glob</code></td></tr>
+        <tr><td>调用技能</td><td><code>Skill</code></td><td><code>skill</code></td><td><code>skill</code></td><td><code>activate_skill</code></td></tr>
+        <tr><td>派遣子代理</td><td><code>Task</code></td><td><code>task</code></td><td><code>task</code></td><td><span style="color:var(--red)">不支持</span></td></tr>
+        <tr><td>任务追踪</td><td><code>TodoWrite</code></td><td><code>sql(todos)</code></td><td><code>sql(todos)</code></td><td><code>write_todos</code></td></tr>
+        <tr><td>网页搜索</td><td><code>WebSearch</code></td><td>—</td><td><code>web_fetch</code></td><td><code>google_web_search</code></td></tr>
+        <tr><td>计划模式</td><td><code>EnterPlanMode</code></td><td>—</td><td>—</td><td><code>enter_plan_mode</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 session-start 脚本的平台检测逻辑</h3>
+    <pre><code><span class="cmt"># 平台检测优先级：</span>
+<span class="cmt"># 1. CURSOR_PLUGIN_ROOT → Cursor（最高优先级，因为 Cursor 可能也设置 CLAUDE_PLUGIN_ROOT）</span>
+<span class="cmt"># 2. CLAUDE_PLUGIN_ROOT + 无 COPILOT_CLI → Claude Code</span>
+<span class="cmt"># 3. 其他（包括 COPILOT_CLI=1）→ SDK 标准格式</span>
+
+<span class="kw">if</span> [ -n <span class="str">"${CURSOR_PLUGIN_ROOT:-}"</span> ]; <span class="kw">then</span>
+  <span class="cmt"># Cursor: additional_context（蛇形命名）</span>
+  printf <span class="str">'{"additional_context": "%s"}\n'</span> <span class="str">"$session_context"</span>
+<span class="kw">elif</span> [ -n <span class="str">"${CLAUDE_PLUGIN_ROOT:-}"</span> ] && [ -z <span class="str">"${COPILOT_CLI:-}"</span> ]; <span class="kw">then</span>
+  <span class="cmt"># Claude Code: 嵌套结构 + 驼峰命名</span>
+  printf <span class="str">'{"hookSpecificOutput": {"hookEventName": "SessionStart",
+    "additionalContext": "%s"}}\n'</span> <span class="str">"$session_context"</span>
+<span class="kw">else</span>
+  <span class="cmt"># Copilot CLI / 未知: SDK 标准 + 驼峰</span>
+  printf <span class="str">'{"additionalContext": "%s"}\n'</span> <span class="str">"$session_context"</span>
+<span class="kw">fi</span></code></pre>
+    <p><strong>为什么 Cursor 优先于 Claude Code：</strong>Cursor 可能同时设置 <code>CURSOR_PLUGIN_ROOT</code> 和 <code>CLAUDE_PLUGIN_ROOT</code>（因为 Cursor 也支持 Claude Code 插件）。如果先检查 Claude Code，Cursor 会收到嵌套格式的 JSON，导致注入失败。所以 Cursor 检测必须放在前面。</p>
+
+    <h3>4.3 为什么需要平台适配而不是统一接口？</h3>
+    <div class="card">
+      <p>各平台的 Hook 系统是<strong>独立开发的</strong>，没有统一的 JSON schema：</p>
+      <ul>
+        <li><strong>Cursor：</strong>使用蛇形命名 <code>additional_context</code>，顶层字段。</li>
+        <li><strong>Claude Code：</strong>使用嵌套结构 <code>hookSpecificOutput.additionalContext</code>，且要求 <code>hookEventName</code> 字段。</li>
+        <li><strong>Copilot CLI：</strong>使用 SDK 标准格式 <code>additionalContext</code>（驼峰），顶层字段。</li>
+      </ul>
+      <p style="margin-top:8px">关键注释来自源码：</p>
+      <pre><code><span class="cmt"># Claude Code reads BOTH additional_context and hookSpecificOutput
+# without deduplication, so we must emit only the field the
+# current platform consumes.</span></code></pre>
+      <p>如果同时输出两种格式，Claude Code 会<strong>重复注入</strong>相同内容（不去重），导致 token 浪费和潜在的注意力稀释。所以必须精确匹配当前平台的格式。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 5 ==================== -->
+<section class="section collapsed" id="s5">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">05</span>
+    <h2>技能发现与调用的流程机制</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 3：技能优先级排序 — 调用顺序与依赖关系</div>
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="a3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="rgba(255,255,255,0.3)"/></marker>
+          <marker id="a3c" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#22d3ee"/></marker>
+          <marker id="a3g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#34d399"/></marker>
+        </defs>
+        <!-- Layer label: Process Skills -->
+        <text x="30" y="30" fill="#22d3ee" font-size="12" font-weight="700">上层：Process Skills（流程技能）</text>
+        <text x="30" y="46" fill="rgba(255,255,255,0.35)" font-size="9">决定 "怎么做" — 必须先于 Implementation Skills</text>
+        <line x1="20" y1="54" x2="860" y2="54" stroke="rgba(34,211,238,0.15)" stroke-width="1"/>
+        <!-- Process skill boxes -->
+        <rect x="80" y="68" width="170" height="56" rx="10" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="165" y="90" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="700">brainstorming</text>
+        <text x="165" y="108" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">探索需求 → 设计方案</text>
+        <rect x="290" y="68" width="170" height="56" rx="10" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="375" y="90" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="700">debugging</text>
+        <text x="375" y="108" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">系统化排错 → 根因分析</text>
+        <rect x="500" y="68" width="170" height="56" rx="10" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="585" y="90" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="700">writing-plans</text>
+        <text x="585" y="108" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">设计方案 → 实现计划</text>
+        <rect x="710" y="68" width="150" height="56" rx="10" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="785" y="90" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="700">verification</text>
+        <text x="785" y="108" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">验证完成 → 门控检查</text>
+        <!-- Dependency arrows between process skills -->
+        <line x1="250" y1="96" x2="288" y2="96" stroke="#22d3ee" stroke-width="1" marker-end="url(#a3c)"/>
+        <line x1="460" y1="96" x2="498" y2="96" stroke="#22d3ee" stroke-width="1" marker-end="url(#a3c)"/>
+        <!-- Vertical arrow: process → implementation -->
+        <line x1="440" y1="124" x2="440" y2="175" stroke="rgba(255,255,255,0.3)" stroke-width="2" marker-end="url(#a3)"/>
+        <rect x="370" y="140" width="140" height="24" rx="6" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="440" y="156" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">依赖：先设计后实现</text>
+        <!-- Layer label: Implementation Skills -->
+        <text x="30" y="195" fill="#34d399" font-size="12" font-weight="700">下层：Implementation Skills（实现技能）</text>
+        <text x="30" y="211" fill="rgba(255,255,255,0.35)" font-size="9">决定 "做什么" — 依赖上层 Process Skills 的输出</text>
+        <line x1="20" y1="218" x2="860" y2="218" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <!-- Implementation skill boxes -->
+        <rect x="80" y="228" width="170" height="56" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="165" y="250" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">TDD</text>
+        <text x="165" y="268" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">测试驱动开发</text>
+        <rect x="290" y="228" width="170" height="56" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="375" y="250" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">frontend-design</text>
+        <text x="375" y="268" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">前端设计指南</text>
+        <rect x="500" y="228" width="170" height="56" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="585" y="250" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">executing-plans</text>
+        <text x="585" y="268" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">计划执行引擎</text>
+        <rect x="710" y="228" width="150" height="56" rx="10" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="785" y="250" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">mcp-builder</text>
+        <text x="785" y="268" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">MCP 服务器构建</text>
+        <!-- Dependency arrows between implementation skills -->
+        <line x1="250" y1="256" x2="288" y2="256" stroke="#34d399" stroke-width="1" marker-end="url(#a3g)"/>
+        <line x1="460" y1="256" x2="498" y2="256" stroke="#34d399" stroke-width="1" marker-end="url(#a3g)"/>
+        <!-- Cross-layer dependency arrows -->
+        <path d="M165 124 L165 175 L165 226" fill="none" stroke="rgba(22,211,238,0.25)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#a3c)"/>
+        <path d="M585 124 L585 175 L585 226" fill="none" stroke="rgba(22,211,238,0.25)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#a3c)"/>
+        <!-- Why annotation -->
+        <rect x="20" y="300" width="840" height="30" rx="6" fill="rgba(251,191,36,0.04)" stroke="rgba(251,191,36,0.15)" stroke-width="1"/>
+        <text x="440" y="319" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">为什么 Process Skills 必须先于 Implementation Skills：Process 决定方向，Implementation 执行动作。方向错误 → 动作白费。</text>
+      </svg>
+    </div>
+
+    <h3>5.1 完整决策树</h3>
+    <p>从用户发送消息到技能执行的完整流程：</p>
+
+    <div class="flow-step">
+      <div class="step-num s1">A</div>
+      <div class="step-body">
+        <div class="step-title">用户消息到达</div>
+        <div class="step-desc">Claude 收到用户消息。Hook 注入的 using-superpowers 已经在系统提示词中。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s3">B</div>
+      <div class="step-body">
+        <div class="step-title">即将进入 PlanMode？</div>
+        <div class="step-desc">如果是 → 检查是否已经过 brainstorming。如果没有 → 强制调用 brainstorming 技能。这个节点确保<strong>规划之前必须有设计</strong>。</div>
+        <pre><code><span class="str">"About to EnterPlanMode?" -> "Already brainstormed?"
+"Already brainstormed?" -> "Invoke brainstorming skill" [label="no"]</span></code></pre>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s1">C</div>
+      <div class="step-body">
+        <div class="step-title">是否有任何技能可能适用？（哪怕 1%）</div>
+        <div class="step-desc">如果是 → 调用 Skill 工具。如果确定没有 → 直接回复。</div>
+        <pre><code><span class="str">"Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"]
+"Might any skill apply?" -> "Respond" [label="definitely not"]</span></code></pre>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">D</div>
+      <div class="step-body">
+        <div class="step-title">宣布技能使用</div>
+        <div class="step-desc"><code>"I'm using [skill] to [purpose]"</code> — Commitment 原则：公开声明增加遵从概率。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s4">E</div>
+      <div class="step-body">
+        <div class="step-title">技能有检查清单？</div>
+        <div class="step-desc">如果是 → 用 TodoWrite 为每个检查项创建待办任务。如果否 → 直接执行。</div>
+        <pre><code><span class="str">"Has checklist?" -> "Create TodoWrite todo per item" [label="yes"]
+"Has checklist?" -> "Follow skill exactly" [label="no"]</span></code></pre>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">F</div>
+      <div class="step-body">
+        <div class="step-title">严格遵循技能</div>
+        <div class="step-desc"><code>Follow skill exactly</code> — 特别是 Rigid 技能，不允许"灵活适应"。</div>
+      </div>
+    </div>
+
+    <h3>5.2 "About to EnterPlanMode?" 节点的设计意图</h3>
+    <div class="card amber">
+      <p>这个节点是 <strong>brainstorming 技能的强制触发器</strong>。它的设计基于一个关键观察：</p>
+      <p><strong>Agent 倾向于在规划阶段跳过设计，直接进入实现。</strong>EnterPlanMode 是 agent 从"理解问题"切换到"制定计划"的时刻。如果没有这个检查点，agent 可能会直接进入规划模式，列出实现步骤，而从未思考过"我们到底在做什么、为什么做"。</p>
+      <p style="margin-top:8px">brainstorming 技能自身也有一个 HARD-GATE：</p>
+      <pre><code><span class="tag">&lt;HARD-GATE&gt;</span>
+Do NOT invoke any implementation skill, write any code,
+scaffold any project, or take any implementation action
+until you have presented a design and the user has approved it.
+<span class="tag">&lt;/HARD-GATE&gt;</span></code></pre>
+      <p>两个门控形成<strong>双重防线</strong>：using-superpowers 在进入 PlanMode 时拦截，brainstorming 在开始实现时拦截。</p>
+    </div>
+
+    <h3>5.3 技能调用后的执行要求</h3>
+    <pre><code><span class="str">"Follow skill exactly"</span></code></pre>
+    <p>这四个字是整个流程的最终要求。配合技能类型分类：</p>
+    <ul>
+      <li><strong>Rigid 技能（TDD, debugging）：</strong>"Follow exactly" = 不允许偏离、不允许"灵活适应"、不允许跳过步骤。</li>
+      <li><strong>Flexible 技能（patterns）：</strong>"Follow" = 理解原则，根据上下文适配。"exactly" 在此不适用。</li>
+    </ul>
+    <p>技能自身通过内容告诉 agent 它是 Rigid 还是 Flexible。using-superpowers 不需要为每个技能做分类 — 这个职责下放给了技能本身。</p>
+
+    <h3>5.4 技能链的实际串联示例</h3>
+    <p>当用户说 "Let's build a user authentication system" 时：</p>
+    <div class="flow-step">
+      <div class="step-num s1">1</div>
+      <div class="step-body">
+        <div class="step-title">using-superpowers 拦截</div>
+        <div class="step-desc">检测到 "build" 触发词 → 检查技能 → 调用 brainstorming</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s2">2</div>
+      <div class="step-body">
+        <div class="step-title">brainstorming 执行</div>
+        <div class="step-desc">探索项目上下文 → 提问澄清需求 → 提出 2-3 方案 → 呈现设计 → 用户审批 → 写设计文档</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s3">3</div>
+      <div class="step-body">
+        <div class="step-title">brainstorming 调用 writing-plans</div>
+        <div class="step-desc">设计审批后 → 调用 writing-plans 创建实现计划 → 计划包含具体文件路径、代码、测试命令</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s4">4</div>
+      <div class="step-body">
+        <div class="step-title">writing-plans 交给执行引擎</div>
+        <div class="step-desc">选择 subagent-driven-development 或 executing-plans → 每个任务执行时自动触发 TDD</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num s1">5</div>
+      <div class="step-body">
+        <div class="step-title">TDD 强制执行</div>
+        <div class="step-desc">每个代码变更 → 先写测试 → 看 red → 写最小代码 → 看 green → 重构</div>
+      </div>
+    </div>
+    <p>整条链路：using-superpowers → brainstorming → writing-plans → subagent-driven-development → TDD。每一步都是前一步的自然延伸，且每一步都被前一扇门控强制触发。</p>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 6 ==================== -->
+<section class="section collapsed" id="s6">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">06</span>
+    <h2>可复用的设计模式提取</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 4：红旗防御与 Authority 语言的训练数据机制</div>
+      <svg viewBox="0 0 880 440" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="a4" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(248,113,113,0.5)"/></marker>
+          <marker id="a4g" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="rgba(52,211,153,0.5)"/></marker>
+        </defs>
+        <!-- Left side: Weak authority -->
+        <rect x="20" y="20" width="400" height="320" rx="12" fill="rgba(248,113,113,0.03)" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+        <text x="220" y="46" text-anchor="middle" fill="#f87171" font-size="13" font-weight="700">弱 Authority 语言</text>
+        <text x="220" y="62" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">"Please consider" / "It would be great if..."</text>
+        <!-- Step 1 -->
+        <rect x="60" y="78" width="320" height="40" rx="8" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+        <text x="220" y="96" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11">模型看到: "Please consider using TDD"</text>
+        <text x="220" y="112" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">输入 token: Please / consider / using / TDD</text>
+        <!-- Arrow -->
+        <line x1="220" y1="118" x2="220" y2="140" stroke="rgba(248,113,113,0.4)" stroke-width="1.5" marker-end="url(#a4)"/>
+        <!-- Step 2 -->
+        <rect x="60" y="144" width="320" height="52" rx="8" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+        <text x="220" y="163" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11">训练数据中的高频后继模式：</text>
+        <text x="220" y="180" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">"...but it might not be necessary"</text>
+        <text x="220" y="192" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">"...when feasible" / "...if appropriate"</text>
+        <!-- Arrow -->
+        <line x1="220" y1="196" x2="220" y2="218" stroke="rgba(248,113,113,0.4)" stroke-width="1.5" marker-end="url(#a4)"/>
+        <!-- Step 3 -->
+        <rect x="60" y="222" width="320" height="40" rx="8" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.2)" stroke-width="1"/>
+        <text x="220" y="240" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11">选择性行为：可能跳过 TDD</text>
+        <text x="220" y="256" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">"consider" 暗示可选 → agent 自行判断</text>
+        <!-- Arrow -->
+        <line x1="220" y1="262" x2="220" y2="284" stroke="rgba(248,113,113,0.4)" stroke-width="1.5" marker-end="url(#a4)"/>
+        <!-- Step 4: Result -->
+        <rect x="100" y="288" width="240" height="36" rx="8" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="220" y="310" text-anchor="middle" fill="#f87171" font-size="12" font-weight="700">结果：规则可能被跳过 ✗</text>
+        <!-- Right side: Strong authority -->
+        <rect x="460" y="20" width="400" height="320" rx="12" fill="rgba(52,211,153,0.03)" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <text x="660" y="46" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">强 Authority 语言</text>
+        <text x="660" y="62" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">"YOU MUST" / "No exceptions" / ABSOLUTELY</text>
+        <!-- Step 1 -->
+        <rect x="500" y="78" width="320" height="40" rx="8" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.2)" stroke-width="1"/>
+        <text x="660" y="96" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11">模型看到: "YOU MUST use TDD. No exceptions."</text>
+        <text x="660" y="112" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">输入 token: YOU / MUST / use / TDD / No / exceptions</text>
+        <!-- Arrow -->
+        <line x1="660" y1="118" x2="660" y2="140" stroke="rgba(52,211,153,0.4)" stroke-width="1.5" marker-end="url(#a4g)"/>
+        <!-- Step 2 -->
+        <rect x="500" y="144" width="320" height="52" rx="8" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.2)" stroke-width="1"/>
+        <text x="660" y="163" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11">训练数据中的高频后继模式：</text>
+        <text x="660" y="180" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">系统配置 / 安全策略 / API 规范</text>
+        <text x="660" y="192" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">→ 后续必须是遵循/执行动作</text>
+        <!-- Arrow -->
+        <line x1="660" y1="196" x2="660" y2="218" stroke="rgba(52,211,153,0.4)" stroke-width="1.5" marker-end="url(#a4g)"/>
+        <!-- Step 3 -->
+        <rect x="500" y="222" width="320" height="40" rx="8" fill="rgba(52,211,153,0.06)" stroke="rgba(52,211,153,0.2)" stroke-width="1"/>
+        <text x="660" y="240" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11">服从行为：执行 TDD 流程</text>
+        <text x="660" y="256" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9">"MUST" 暗示不可选 → agent 直接执行</text>
+        <!-- Arrow -->
+        <line x1="660" y1="262" x2="660" y2="284" stroke="rgba(52,211,153,0.4)" stroke-width="1.5" marker-end="url(#a4g)"/>
+        <!-- Step 4: Result -->
+        <rect x="540" y="288" width="240" height="36" rx="8" fill="rgba(52,211,153,0.12)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="660" y="310" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">结果：规则被遵循 ✓</text>
+        <!-- VS divider -->
+        <text x="440" y="180" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="20" font-weight="700">VS</text>
+        <!-- Bottom: Core mechanism -->
+        <rect x="40" y="360" width="800" height="56" rx="10" fill="rgba(251,191,36,0.05)" stroke="rgba(251,191,36,0.2)" stroke-width="1.5"/>
+        <text x="440" y="385" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">核心机制</text>
+        <text x="440" y="405" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="11">一切 Prompt 技巧的底层都是训练数据中的统计模式复现</text>
+      </svg>
+    </div>
+
+    <details class="sub-collapse">
+      <summary>模式 1：会话劫持模式（Session Hijack Pattern）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>在用户对话开始时，通过 Hook 机制向系统提示词注入关键规则，确保 agent 的第一条回复之前就已经接受约束框架。</p>
+        <p><strong>适用场景：</strong>任何需要 agent 在整个会话中持续遵守的规则。特别是"agent 有动机违反"的纪律型规则。</p>
+        <p><strong>using-superpowers 中的源码示例：</strong></p>
+        <pre><code><span class="cmt"># session-start 脚本核心逻辑</span>
+session_context=<span class="str">"&lt;EXTREMELY_IMPORTANT&gt;\n
+You have superpowers.\n\n
+**Below is the full content of your skill...**\n\n
+${using_superpowers_escaped}\n
+&lt;/EXTREMELY_IMPORTANT&gt;"</span></code></pre>
+        <p><strong>业务 Skill 应用示例：</strong></p>
+        <p>假设你在开发一个"代码审查"技能，需要确保 agent 在每次 PR 审查时都遵循特定的检查清单：</p>
+        <pre><code><span class="cmt"># 你的 session-start 脚本</span>
+review_content=$(cat <span class="str">"${PLUGIN_ROOT}/skills/code-review-rules/SKILL.md"</span>)
+session_context=<span class="str">"&lt;EXTREMELY_IMPORTANT&gt;\n
+Code Review Protocol:\n
+Before approving any PR, you MUST follow this checklist:\n\n
+${review_content}\n
+&lt;/EXTREMELY_IMPORTANT&gt;"</span></code></pre>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 2：红旗防御模式（Red Flag Defense Pattern）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>预先列出 agent 在压力下可能产生的"偷懒想法"，并为每个想法准备一句直接的"现实反击"。用表格形式呈现，方便 agent 快速自检。</p>
+        <p><strong>适用场景：</strong>任何 agent 有动机绕过的规则。特别是"节省时间"动机强的场景。</p>
+        <p><strong>using-superpowers 中的源码示例：</strong></p>
+        <pre><code>| Thought                              | Reality                                    |
+|--------------------------------------|--------------------------------------------|
+| "This is just a simple question"      | Questions are tasks. Check for skills.     |
+| "I need more context first"          | Skill check comes BEFORE clarifying.       |
+| "This doesn't need a formal skill"   | If a skill exists, use it.                 |</code></pre>
+        <p><strong>关键设计原则：</strong></p>
+        <ul>
+          <li><strong>第一人称：</strong>每条"Thought"都是 agent 脑子里会冒出的念头，不是第三人称描述</li>
+          <li><strong>短句反击：</strong>每条"Reality"都是一句话，直接击穿借口的逻辑</li>
+          <li><strong>覆盖全面：</strong>通过基线测试（RED phase）收集所有已观察到的合理化方式</li>
+        </ul>
+        <p><strong>业务 Skill 应用示例：</strong></p>
+        <pre><code><span class="cmt"># 代码审查技能的红旗表</span>
+| "The tests look fine"                | Run them yourself. "Looks fine" ≠ verified.|
+| "The author is experienced"          | Experienced people make mistakes too.      |
+| "This is a minor change"             | Minor changes ship bugs too. Review fully. |
+| "I don't want to be too nitpicky"    | Nitpicky catches real bugs. Be thorough.   |</code></pre>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 3：技能发现模式（Skill Discovery Pattern）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>要求 agent 在回复之前主动检查是否有适用的技能，并将"检查阈值"降到极低（1%），使 agent 几乎总是先检查再行动。</p>
+        <p><strong>适用场景：</strong>当你有多个可能适用的技能，且需要 agent 自动选择正确的技能时。</p>
+        <p><strong>using-superpowers 中的源码示例：</strong></p>
+        <pre><code><span class="str">If you think there is even a 1% chance a skill might apply
+to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+If an invoked skill turns out to be wrong for the situation,
+you don't need to use it.</span></code></pre>
+        <p><strong>关键设计原则：</strong></p>
+        <ul>
+          <li><strong>低阈值 + 低成本退出：</strong>"1%"降低了调用门槛，"不需要使用"降低了调用成本。两者结合使 agent 倾向于"先调用再看"而不是"先判断再决定调不调用"。</li>
+          <li><strong>BEFORE any response：</strong>时序约束 — 检查必须在回复之前，不能延后。</li>
+        </ul>
+        <p><strong>业务 Skill 应用示例：</strong></p>
+        <pre><code><span class="cmt"># 在你的业务技能框架中</span>
+Before writing any database query, check if a data-access-pattern
+skill exists. Even if you're 99% sure you know how to write it,
+invoke the skill first. If it doesn't apply, move on.
+
+The cost of checking is near-zero. The cost of not checking
+is a subtle bug in production.</code></pre>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 4：优先级排序模式（Priority Ordering Pattern）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>当多个规则/技能可能同时适用时，定义明确的优先级顺序，避免 agent 自行判断导致的随机行为。</p>
+        <p><strong>适用场景：</strong>多技能/多规则系统中，需要确保执行顺序正确。</p>
+        <p><strong>using-superpowers 中的源码示例：</strong></p>
+        <pre><code><span class="str">1. Process skills first (brainstorming, debugging)
+   - these determine HOW to approach the task
+2. Implementation skills second (frontend-design, mcp-builder)
+   - these guide execution</span></code></pre>
+        <p>以及指令优先级：</p>
+        <pre><code><span class="str">1. User's explicit instructions — highest priority
+2. Superpowers skills — override default system behavior
+3. Default system prompt — lowest priority</span></code></pre>
+        <p><strong>关键设计原则：</strong></p>
+        <ul>
+          <li><strong>数字编号：</strong>明确的 1-2-3 排序，不允许 agent 自行判断优先级</li>
+          <li><strong>依赖理由：</strong>每个优先级附带"为什么"（Process 决定怎么做 → 必须先执行）</li>
+          <li><strong>用户最高：</strong>始终声明用户指令优先，防止技能与用户意图冲突</li>
+        </ul>
+        <p><strong>业务 Skill 应用示例：</strong></p>
+        <pre><code><span class="cmt"># 在你的 API 设计技能中</span>
+When designing a new API endpoint, follow this order:
+1. Security review first (auth, input validation, rate limiting)
+2. Schema design second (data model, relationships)
+3. Implementation third (actual code)
+
+Security determines what schema is possible.
+Schema determines what implementation looks like.</code></pre>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>模式 5：子代理过滤器模式（Subagent Gate Pattern）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>用特殊标签（如 <code>&lt;SUBAGENT-STOP&gt;</code>）标记不应该被子代理继承的内容，防止 token 浪费和行为冲突。</p>
+        <p><strong>适用场景：</strong>任何使用子代理/并行 agent 的系统。主 agent 需要的框架性指令，子代理不需要。</p>
+        <p><strong>using-superpowers 中的源码示例：</strong></p>
+        <pre><code><span class="tag">&lt;SUBAGENT-STOP&gt;</span>
+If you were dispatched as a subagent to execute a specific task,
+skip this skill.
+<span class="tag">&lt;/SUBAGENT-STOP&gt;</span></code></pre>
+        <p><strong>业务 Skill 应用示例：</strong></p>
+        <pre><code><span class="cmt"># 在你的项目管理技能中</span>
+<span class="tag">&lt;SUBAGENT-STOP&gt;</span>
+If you are a subagent executing a specific task from a plan,
+skip the project overview and reporting requirements.
+Focus only on completing your assigned task.
+<span class="tag">&lt;/SUBAGENT-STOP&gt;</span></code></pre>
+        <p>这个模式的重要性在于：<strong>子代理继承系统提示词是不可控的</strong>。如果主 agent 的系统提示词中包含 2000 字的框架性指令，每个子代理都会浪费 2000 token 的注意力在这些不相关的指令上。子代理过滤器是唯一的优化手段。</p>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<footer>
+  <p>Based on superpowers/skills/using-superpowers + hooks — Generated for skill architecture study</p>
+</footer>
+
+</div>
+
+<script>
+function toggleSection(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'e' && e.altKey) document.querySelectorAll('.section').forEach(s => s.classList.remove('collapsed'));
+  if (e.key === 'c' && e.altKey) document.querySelectorAll('.section').forEach(s => s.classList.add('collapsed'));
+});
+</script>
+</body>
+</html>

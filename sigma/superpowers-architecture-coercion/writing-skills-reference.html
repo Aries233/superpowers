@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writing-Skills 技能架构深度拆解</title>
+<style>
+:root {
+  --bg: #08080c;
+  --surface: rgba(255,255,255,0.03);
+  --surface-hover: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.06);
+  --text: #ededef;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent-1: #f59e0b;
+  --accent-2: #ef4444;
+  --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --cyan: #22d3ee;
+  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, 'Inter', system-ui, sans-serif;
+  --radius: 12px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse 600px 400px at 15% 10%, rgba(245,158,11,0.06), transparent),
+    radial-gradient(ellipse 500px 500px at 85% 80%, rgba(239,68,68,0.04), transparent),
+    radial-gradient(ellipse 400px 300px at 50% 50%, rgba(255,255,255,0.015), transparent);
+  pointer-events: none; z-index: 0;
+}
+.container { max-width: 860px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+header {
+  padding: 80px 0 48px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent-1);
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.2);
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+h1 {
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+}
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 16px;
+  max-width: 600px;
+}
+nav.toc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 48px;
+}
+nav.toc summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent-1);
+  list-style: none;
+  display: flex; align-items: center; gap: 8px;
+}
+nav.toc summary::-webkit-details-marker { display: none; }
+nav.toc summary::before { content: '▸'; transition: transform 0.2s; }
+nav.toc[open] summary::before { transform: rotate(90deg); }
+nav.toc ol {
+  margin-top: 12px;
+  padding-left: 0;
+  list-style: none;
+  display: grid; gap: 4px;
+}
+nav.toc a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: block;
+  transition: all 0.2s;
+}
+nav.toc a:hover { color: var(--text); background: var(--surface-hover); }
+nav.toc a .num { color: var(--accent-1); font-weight: 600; margin-right: 6px; }
+.section { margin-bottom: 56px; }
+.section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; cursor: pointer;
+  user-select: none;
+}
+.section-header .num {
+  font-size: 13px; font-weight: 700;
+  color: var(--accent-1);
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.2);
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.section-header h2 {
+  font-size: 22px; font-weight: 700;
+  flex: 1;
+}
+.section-header .toggle {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.section.collapsed .section-content { display: none; }
+.section.collapsed .toggle { transform: rotate(-90deg); }
+.section-content { transition: opacity 0.3s; }
+h3 {
+  font-size: 17px; font-weight: 600;
+  margin: 32px 0 12px;
+  color: var(--text);
+  padding-left: 12px;
+  border-left: 3px solid var(--accent-1);
+}
+h4 {
+  font-size: 15px; font-weight: 600;
+  margin: 24px 0 8px;
+  color: var(--text-secondary);
+}
+p { color: var(--text-secondary); margin-bottom: 12px; font-size: 14.5px; }
+strong { color: var(--text); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 16px 0;
+  backdrop-filter: blur(8px);
+}
+.card.accent {
+  border-color: rgba(245,158,11,0.15);
+  background: rgba(245,158,11,0.03);
+}
+.card.green { border-color: rgba(52,211,153,0.15); background: rgba(52,211,153,0.03); }
+.card.red { border-color: rgba(248,113,113,0.15); background: rgba(248,113,113,0.03); }
+.card.cyan { border-color: rgba(34,211,238,0.15); background: rgba(34,211,238,0.03); }
+pre {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+p code, li code {
+  background: rgba(255,255,255,0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+.kw { color: #c084fc; }
+.fn { color: #60a5fa; }
+.str { color: #34d399; }
+.num { color: #fb923c; }
+.cmt { color: rgba(255,255,255,0.25); font-style: italic; }
+.op { color: #f87171; }
+.tag { color: #f87171; }
+.attr { color: #fbbf24; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+tr:hover td { background: var(--surface-hover); }
+.badge-good {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.badge-good.positive { background: rgba(52,211,153,0.12); color: var(--green); }
+.badge-good.negative { background: rgba(248,113,113,0.12); color: var(--red); }
+.badge-good.neutral { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+ul, ol { padding-left: 20px; margin-bottom: 12px; }
+li { color: var(--text-secondary); font-size: 14.5px; margin-bottom: 6px; }
+li strong { color: var(--text); }
+.checklist { list-style: none; padding-left: 0; }
+.checklist li {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  display: flex; gap: 10px; align-items: flex-start;
+  transition: background 0.2s;
+}
+.checklist li:hover { background: var(--surface-hover); }
+.checklist .check {
+  width: 18px; height: 18px;
+  border: 2px solid var(--text-tertiary);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.checklist .check-text { flex: 1; }
+.checklist .check-label { font-weight: 600; color: var(--text); font-size: 13.5px; }
+.checklist .check-desc { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; }
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.compare-item {
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.compare-item.good {
+  background: rgba(52,211,153,0.05);
+  border: 1px solid rgba(52,211,153,0.15);
+}
+.compare-item.bad {
+  background: rgba(248,113,113,0.05);
+  border: 1px solid rgba(248,113,113,0.15);
+}
+.compare-item .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.compare-item.good .label { color: var(--green); }
+.compare-item.bad .label { color: var(--red); }
+.principle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.principle-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.principle-card:hover {
+  border-color: rgba(245,158,11,0.3);
+  transform: translateY(-2px);
+}
+.principle-card .p-name {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.principle-card .p-sub {
+  font-size: 12px;
+  color: var(--accent-1);
+  margin-bottom: 8px;
+}
+.principle-card .p-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.flow-step {
+  display: flex; gap: 16px; align-items: flex-start;
+  margin-bottom: 16px;
+  position: relative;
+}
+.flow-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 19px; top: 40px; bottom: -8px;
+  width: 2px;
+  background: var(--border);
+}
+.flow-step .step-num {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.flow-step .step-num.red-step { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+.flow-step .step-num.green-step { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+.flow-step .step-num.blue-step { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+.flow-step .step-num.amber-step { background: rgba(251,191,36,0.15); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+.flow-step .step-body { flex: 1; }
+.flow-step .step-title { font-weight: 600; font-size: 14.5px; margin-bottom: 4px; }
+.flow-step .step-desc { font-size: 13px; color: var(--text-secondary); }
+blockquote {
+  border-left: 3px solid var(--accent-1);
+  padding: 12px 16px;
+  margin: 12px 0;
+  background: rgba(245,158,11,0.03);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+blockquote strong { font-style: normal; }
+.iron-law {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 20px;
+  background: rgba(248,113,113,0.06);
+  border: 2px solid rgba(248,113,113,0.2);
+  border-radius: var(--radius);
+  color: var(--red);
+  margin: 20px 0;
+}
+.tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.tag-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-weight: 500;
+}
+.tag-pill.use { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+.tag-pill.avoid { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+.tag-pill.moderate { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+.diff-table td:first-child { width: 35%; }
+.diff-table .match { color: var(--green); }
+.diff-table .diff { color: var(--red); }
+.diff-table .partial { color: var(--amber); }
+.arch-diagram {
+  margin: 24px 0;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+.arch-diagram svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+.arch-diagram .diagram-title {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-1);
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.sub-collapse summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  padding: 8px 0;
+  list-style: none;
+  display: flex; align-items: center; gap: 8px;
+}
+.sub-collapse summary::-webkit-details-marker { display: none; }
+.sub-collapse summary::before { content: '▸'; color: var(--accent-1); transition: transform 0.2s; font-size: 12px; }
+.sub-collapse[open] summary::before { transform: rotate(90deg); }
+.sub-collapse .sub-content {
+  padding: 8px 0 8px 16px;
+  border-left: 2px solid var(--border);
+  margin-left: 6px;
+}
+@media (max-width: 640px) {
+  .container { padding: 0 16px; }
+  header { padding: 48px 0 32px; }
+  .comparison { grid-template-columns: 1fr; }
+  .principle-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 26px; }
+  pre { font-size: 11.5px; padding: 12px; }
+  td, th { padding: 8px 10px; font-size: 12px; }
+}
+@media print {
+  body { background: #fff; color: #111; }
+  body::before { display: none; }
+  .section.collapsed .section-content { display: block !important; }
+  nav.toc { position: static; background: #f5f5f5; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="badge">Architecture Deep Dive</div>
+  <h1>Writing-Skills 技能架构深度拆解</h1>
+  <p class="subtitle">从业务问题到 Skill 设计的系统能力 — 基于说服心理学的 AI Agent 行为工程指南</p>
+</header>
+
+<nav class="toc" open>
+  <summary>目录导航</summary>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span>Writing-Skills 技能全景解读</a></li>
+    <li><a href="#s2"><span class="num">02</span>Persuasion Principles 深度拆解</a></li>
+    <li><a href="#s3"><span class="num">03</span>设计模式实战对照表</a></li>
+    <li><a href="#s4"><span class="num">04</span>Anthropic 最佳实践 vs Superpowers 设计哲学</a></li>
+    <li><a href="#s5"><span class="num">05</span>Skill 质量审查清单</a></li>
+    <li><a href="#s6"><span class="num">06</span>从业务问题到 Skill 设计的工作流</a></li>
+  </ol>
+</nav>
+
+<!-- ==================== SECTION 1 ==================== -->
+<section class="section" id="s1">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">01</span>
+    <h2>Writing-Skills 技能全景解读</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 1：Skill 设计到成品的完整工作流</div>
+      <svg viewBox="0 0 1100 220" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="arrow1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/></marker>
+          <linearGradient id="nodeGrad1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(245,158,11,0.15)"/><stop offset="100%" stop-color="rgba(245,158,11,0.05)"/></linearGradient>
+        </defs>
+        <!-- Node 1 -->
+        <rect x="10" y="50" width="120" height="56" rx="8" fill="url(#nodeGrad1)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="70" y="72" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">明确业务问题</text>
+        <text x="70" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输入: 模糊需求</text>
+        <!-- Arrow -->
+        <line x1="130" y1="78" x2="152" y2="78" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow1)"/>
+        <!-- Node 2 -->
+        <rect x="160" y="50" width="130" height="56" rx="8" fill="url(#nodeGrad1)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="225" y="72" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">选择说服原则组合</text>
+        <text x="225" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输入: 技能类型分析</text>
+        <!-- Arrow -->
+        <line x1="290" y1="78" x2="312" y2="78" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow1)"/>
+        <!-- Node 3 -->
+        <rect x="320" y="50" width="120" height="56" rx="8" fill="url(#nodeGrad1)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="380" y="72" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">设计流程步骤</text>
+        <text x="380" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输出: 步骤序列</text>
+        <!-- Arrow -->
+        <line x1="440" y1="78" x2="462" y2="78" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow1)"/>
+        <!-- Node 4 -->
+        <rect x="470" y="50" width="110" height="56" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+        <text x="525" y="72" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700">编写初版</text>
+        <text x="525" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输入: 基线测试结果</text>
+        <!-- Arrow -->
+        <line x1="580" y1="78" x2="602" y2="78" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow1)"/>
+        <!-- Node 5 -->
+        <rect x="610" y="50" width="120" height="56" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="670" y="72" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">Self-Review</text>
+        <text x="670" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输出: 质量审查报告</text>
+        <!-- Arrow -->
+        <line x1="730" y1="78" x2="752" y2="78" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow1)"/>
+        <!-- Node 6 -->
+        <rect x="760" y="50" width="120" height="56" rx="8" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="820" y="72" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">测试迭代</text>
+        <text x="820" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输入: 压力场景</text>
+        <!-- Arrow -->
+        <line x1="880" y1="78" x2="902" y2="78" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow1)"/>
+        <!-- Node 7 -->
+        <rect x="910" y="50" width="120" height="56" rx="8" fill="rgba(245,158,11,0.15)" stroke="#fbbf24" stroke-width="2"/>
+        <text x="970" y="72" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">成品 Skill</text>
+        <text x="970" y="92" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">输出: 可部署技能</text>
+        <!-- Phase labels -->
+        <text x="70" y="135" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10">Brainstorming</text>
+        <line x1="10" y1="120" x2="130" y2="120" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="380" y="135" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10">GREEN Phase</text>
+        <line x1="320" y1="120" x2="440" y2="120" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="525" y="135" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10">RED Phase</text>
+        <line x1="470" y1="120" x2="580" y2="120" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="745" y="135" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10">REFACTOR Phase</text>
+        <line x1="610" y1="120" x2="880" y2="120" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="970" y="135" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="10">Deploy</text>
+        <line x1="910" y1="120" x2="1030" y2="120" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- Feedback loop arrow -->
+        <path d="M820 106 L820 160 L670 160 L670 106" fill="none" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow1)"/>
+        <text x="745" y="175" text-anchor="middle" fill="rgba(52,211,153,0.6)" font-size="9">发现新合理化 → 返回 REFACTOR</text>
+      </svg>
+    </div>
+
+    <h3>1.1 设计目标与核心定位</h3>
+    <p>Writing-Skills 不是一个普通的"如何写文档"的技能。它的本质是一个<strong>元技能</strong> — 教你如何编写<strong>其他技能</strong>的技能。它解决的问题可以用一句话概括：</p>
+
+    <blockquote>
+      <strong>如何编写一份能可靠地改变 AI Agent 行为的文档，使其在压力下仍然遵循规则？</strong>
+    </blockquote>
+
+    <p>它的核心洞察来自软件工程的一个基本实践：</p>
+    <div class="iron-law">
+      Writing skills IS Test-Driven Development applied to process documentation.<br>
+      <span style="font-size:12px;color:var(--text-secondary)">编写技能就是将测试驱动开发（TDD）应用于流程文档</span>
+    </div>
+
+    <p>这意味着：你不会因为"觉得文档写得不错"就认为技能有效，而是要通过<strong>真实的 agent 测试</strong>来验证。如果 agent 在没有该技能时会犯错，而有了该技能后不再犯错，那么这份技能才是有效的。</p>
+
+    <h3>1.2 完整流程：从需求到成品</h3>
+    <p>Writing-Skills 将技能创建严格映射为 TDD 的 RED-GREEN-REFACTOR 循环：</p>
+
+    <div class="flow-step">
+      <div class="step-num red-step">R</div>
+      <div class="step-body">
+        <div class="step-title">RED — 基线测试（观察失败）</div>
+        <div class="step-desc">在<strong>没有</strong>技能的情况下，用压力场景测试 agent。记录它做了什么选择、用了什么借口（逐字记录）。这一步回答的问题是：<em>"agent 在压力下到底会犯什么错？"</em></div>
+        <pre><code><span class="cmt"># 示例：TDD 压力场景</span>
+<span class="str">You spent 3 hours, 200 lines, manually tested. It works.
+It's 6pm, dinner at 6:30pm. Code review tomorrow 9am.
+Just realized you forgot TDD.
+
+Options:
+A) Delete 200 lines, start fresh tomorrow with TDD
+B) Commit now, add tests tomorrow
+C) Write tests now (30 min), then commit</span></code></pre>
+        <p>Agent 选择 B 或 C，并使用如下合理化借口：</p>
+        <pre><code>"I already manually tested it"
+"Tests after achieve same goals"
+"Deleting is wasteful"
+"Being pragmatic not dogmatic"</code></pre>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-num green-step">G</div>
+      <div class="step-body">
+        <div class="step-title">GREEN — 编写最小技能（使其通过）</div>
+        <div class="step-desc">针对基线测试中发现的<strong>具体失败</strong>编写技能。不要为假设性的情况添加额外内容。然后再次运行相同场景，验证 agent 现在遵循规则。</div>
+        <p>关键源码原则：</p>
+        <pre><code><span class="cmt"># Source: SKILL.md - GREEN Phase</span>
+<span class="str">Write skill that addresses those specific rationalizations.
+Don't add extra content for hypothetical cases.</span></code></pre>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-num blue-step">F</div>
+      <div class="step-body">
+        <div class="step-title">REFACTOR — 堵住漏洞（保持通过）</div>
+        <div class="step-desc">Agent 找到了新的合理化借口？添加明确的反制措施。重新测试直到坚不可摧。</div>
+        <pre><code><span class="cmt"># Source: SKILL.md - REFACTOR Phase</span>
+<span class="str">Agent found new rationalization? Add explicit counter.
+Re-test until bulletproof.</span></code></pre>
+        <p>每发现一个新的借口，执行四个步骤：</p>
+        <ol>
+          <li><strong>在规则中添加明确否定</strong>（堵住具体漏洞）</li>
+          <li><strong>在合理化表格中添加条目</strong>（"借口 → 现实"对照）</li>
+          <li><strong>在红旗列表中添加条目</strong>（自检清单）</li>
+          <li><strong>更新 description</strong>（添加违规症状关键词）</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3>1.3 关键设计决策及其原因</h3>
+
+    <details class="sub-collapse">
+      <summary>为什么必须先测试再写？</summary>
+      <div class="sub-content">
+        <p><strong>核心源码：</strong></p>
+        <pre><code><span class="str">Core principle: If you didn't watch an agent fail without the
+skill, you don't know if the skill teaches the right thing.</span></code></pre>
+        <p><strong>原因：</strong>你对"agent 需要什么帮助"的直觉通常是错的。你会写你认为需要的东西，而不是 agent 实际需要的东西。基线测试暴露 agent <em>真正</em>使用的合理化借口，这些借口往往是出人意料的。例如，TDD 技能经过 6 轮 RED-GREEN-REFACTOR 才达到防弹级别，暴露了 10+ 种独特的合理化借口。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>为什么 Description 只写触发条件不写流程？</summary>
+      <div class="sub-content">
+        <p><strong>核心源码：</strong></p>
+        <pre><code><span class="str">CRITICAL: Description = When to Use, NOT What the Skill Does
+
+The trap: Descriptions that summarize workflow create a shortcut
+Claude will take. The skill body becomes documentation Claude skips.</span></code></pre>
+        <p><strong>原因：</strong>测试发现，当 description 总结了工作流程时，Claude 会遵循 description 而不是读取完整技能内容。例如，一个 description 写了"code review between tasks"（任务之间做代码审查），Claude 就只做了一次审查，即使技能的流程图明确显示需要两次审查（规格合规性审查 + 代码质量审查）。改为只写触发条件后，Claude 正确地读取了流程图并遵循了两阶段审查。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>为什么技能分为四种类型？</summary>
+      <div class="sub-content">
+        <table>
+          <thead><tr><th>类型</th><th>定义</th><th>测试策略</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Discipline-Enforcing</strong><br><span style="font-size:11px;color:var(--text-tertiary)">纪律强制型</span></td><td>TDD、验证完成等规则/要求</td><td>学术问题 + 压力场景（3+ 组合压力）</td></tr>
+            <tr><td><strong>Technique</strong><br><span style="font-size:11px;color:var(--text-tertiary)">技术指导型</span></td><td>condition-based-waiting 等操作指南</td><td>应用场景 + 变体场景 + 信息缺失测试</td></tr>
+            <tr><td><strong>Pattern</strong><br><span style="font-size:11px;color:var(--text-tertiary)">思维模式型</span></td><td>reducing-complexity 等心智模型</td><td>识别场景 + 应用场景 + 反例场景</td></tr>
+            <tr><td><strong>Reference</strong><br><span style="font-size:11px;color:var(--text-tertiary)">参考资料型</span></td><td>API 文档、语法指南</td><td>检索场景 + 应用场景 + 缺口测试</td></tr>
+          </tbody>
+        </table>
+        <p>不同类型需要不同的说服策略和测试方法。<strong>纪律强制型</strong>需要最强的防御（Authority + Commitment + Social Proof），而<strong>参考资料型</strong>只需要清晰性。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>为什么有 Iron Law（铁律）？</summary>
+      <div class="sub-content">
+        <pre><code><span class="str">NO SKILL WITHOUT A FAILING TEST FIRST
+
+No exceptions:
+- Not for "simple additions"
+- Not for "just adding a section"
+- Not for "documentation updates"
+- Don't keep untested changes as "reference"
+- Don't "adapt" while running tests
+- Delete means delete</span></code></pre>
+        <p>Iron Law 是对<strong>元层面</strong>的纪律约束。它确保 Writing-Skills 自身的实践与它教授的原则一致。注意它用了和 TDD 技能完全相同的结构 — 这不是巧合，而是刻意示范：编写技能文档和编写代码一样，需要同样的纪律。</p>
+      </div>
+    </details>
+
+    <h3>1.4 CSO（Claude 搜索优化）策略</h3>
+    <p>技能不仅要"写得好"，还要能被未来的 Claude 实例<strong>找到</strong>。Writing-Skills 定义了完整的发现流程：</p>
+    <pre><code><span class="cmt"># Claude 发现技能的流程（6步）</span>
+<span class="num">1.</span> Encounters problem (<span class="str">"tests are flaky"</span>)
+<span class="num">3.</span> Finds SKILL (description matches)
+<span class="num">4.</span> Scans overview (is this relevant?)
+<span class="num">5.</span> Reads patterns (quick reference table)
+<span class="num">6.</span> Loads example (only when implementing)</code></pre>
+    <p>关键词覆盖是 CSO 的关键 — 使用 Claude 会搜索的词汇：</p>
+    <ul>
+      <li><strong>错误消息：</strong>"Hook timed out", "ENOTEMPTY", "race condition"</li>
+      <li><strong>症状：</strong>"flaky", "hanging", "zombie", "pollution"</li>
+      <li><strong>同义词：</strong>"timeout/hang/freeze", "cleanup/teardown/afterEach"</li>
+      <li><strong>工具名：</strong>实际命令、库名、文件类型</li>
+    </ul>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 2 ==================== -->
+<section class="section collapsed" id="s2">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">02</span>
+    <h2>Persuasion Principles 深度拆解</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 2：七原则关系矩阵 — 三种技能类型中的使用强度</div>
+      <svg viewBox="0 0 880 420" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(245,158,11,0.12)"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+        </defs>
+        <!-- Center label -->
+        <circle cx="440" cy="210" r="90" fill="url(#centerGlow)"/>
+        <circle cx="440" cy="210" r="90" fill="none" stroke="rgba(245,158,11,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="440" y="195" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="700">底层机制</text>
+        <text x="440" y="215" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">训练数据统计</text>
+        <text x="440" y="230" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">模式复现</text>
+        <!-- 7 Principles around center -->
+        <!-- Authority - top -->
+        <circle cx="440" cy="60" r="38" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="440" y="57" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="700">Authority</text>
+        <text x="440" y="72" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">权威</text>
+        <!-- Commitment - top right -->
+        <circle cx="570" cy="100" r="38" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="570" y="97" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">Commitment</text>
+        <text x="570" y="112" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">承诺</text>
+        <!-- Scarcity - bottom right -->
+        <circle cx="620" cy="220" r="38" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="620" y="217" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">Scarcity</text>
+        <text x="620" y="232" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">稀缺</text>
+        <!-- Social Proof - bottom -->
+        <circle cx="530" cy="330" r="38" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="530" y="327" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">Social Proof</text>
+        <text x="530" y="342" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">社会认同</text>
+        <!-- Unity - bottom left -->
+        <circle cx="350" cy="330" r="38" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="350" y="327" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">Unity</text>
+        <text x="350" y="342" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">统一</text>
+        <!-- Reciprocity - top left -->
+        <circle cx="260" cy="220" r="38" fill="rgba(248,113,113,0.08)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="260" y="217" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Reciprocity</text>
+        <text x="260" y="232" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">互惠</text>
+        <!-- Liking - left -->
+        <circle cx="310" cy="100" r="38" fill="rgba(248,113,113,0.08)" stroke="#f87171" stroke-width="1.5"/>
+        <text x="310" y="97" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Liking</text>
+        <text x="310" y="112" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">好感</text>
+        <!-- Connection lines to center -->
+        <line x1="440" y1="98" x2="440" y2="120" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+        <line x1="545" y1="130" x2="520" y2="160" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <line x1="590" y1="195" x2="530" y2="205" stroke="rgba(251,191,36,0.15)" stroke-width="1"/>
+        <line x1="510" y1="310" x2="480" y2="280" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+        <line x1="370" y1="310" x2="400" y2="280" stroke="rgba(96,165,250,0.15)" stroke-width="1"/>
+        <line x1="290" y1="205" x2="350" y2="205" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+        <line x1="335" y1="125" x2="360" y2="145" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+        <!-- Legend: Skill type columns -->
+        <rect x="700" y="60" width="160" height="280" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <text x="780" y="85" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11" font-weight="700">原则适用性</text>
+        <line x1="720" y1="95" x2="840" y2="95" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <!-- Column headers -->
+        <text x="755" y="115" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8">纪律型</text>
+        <text x="795" y="115" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8">引导型</text>
+        <text x="835" y="115" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8">协作型</text>
+        <!-- Authority -->
+        <text x="735" y="140" text-anchor="middle" fill="#f59e0b" font-size="9">Authority</text>
+        <circle cx="755" cy="136" r="6" fill="#34d399"/><text x="755" y="139" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">强</text>
+        <circle cx="795" cy="136" r="6" fill="#fbbf24"/><text x="795" y="139" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">中</text>
+        <circle cx="835" cy="136" r="6" fill="#f87171"/><text x="835" y="139" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">禁</text>
+        <!-- Commitment -->
+        <text x="735" y="168" text-anchor="middle" fill="#34d399" font-size="9">Commit.</text>
+        <circle cx="755" cy="164" r="6" fill="#34d399"/><text x="755" y="167" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">强</text>
+        <circle cx="795" cy="164" r="6" fill="#34d399"/><text x="795" y="167" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">弱</text>
+        <circle cx="835" cy="164" r="6" fill="#34d399"/><text x="835" y="167" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">强</text>
+        <!-- Scarcity -->
+        <text x="735" y="196" text-anchor="middle" fill="#fbbf24" font-size="9">Scarcity</text>
+        <circle cx="755" cy="192" r="6" fill="#34d399"/><text x="755" y="195" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">中</text>
+        <circle cx="795" cy="192" r="6" fill="#34d399"/><text x="795" y="195" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">中</text>
+        <circle cx="835" cy="192" r="6" fill="#fbbf24"/><text x="835" y="195" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">弱</text>
+        <!-- Social Proof -->
+        <text x="735" y="224" text-anchor="middle" fill="#34d399" font-size="8">S.Proof</text>
+        <circle cx="755" cy="220" r="6" fill="#34d399"/><text x="755" y="223" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">强</text>
+        <circle cx="795" cy="220" r="6" fill="#fbbf24"/><text x="795" y="223" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">弱</text>
+        <circle cx="835" cy="220" r="6" fill="#fbbf24"/><text x="835" y="223" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">弱</text>
+        <!-- Unity -->
+        <text x="735" y="252" text-anchor="middle" fill="#60a5fa" font-size="9">Unity</text>
+        <circle cx="755" cy="248" r="6" fill="#f87171"/><text x="755" y="251" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">禁</text>
+        <circle cx="795" cy="248" r="6" fill="#34d399"/><text x="795" y="251" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">强</text>
+        <circle cx="835" cy="248" r="6" fill="#34d399"/><text x="835" y="251" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">强</text>
+        <!-- Reciprocity -->
+        <text x="735" y="280" text-anchor="middle" fill="#f87171" font-size="8">Recipr.</text>
+        <circle cx="755" cy="276" r="6" fill="#f87171"/><text x="755" y="279" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">禁</text>
+        <circle cx="795" cy="276" r="6" fill="#fbbf24"/><text x="795" y="279" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">弱</text>
+        <circle cx="835" cy="276" r="6" fill="#fbbf24"/><text x="835" y="279" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">弱</text>
+        <!-- Liking -->
+        <text x="735" y="308" text-anchor="middle" fill="#f87171" font-size="9">Liking</text>
+        <circle cx="755" cy="304" r="6" fill="#f87171"/><text x="755" y="307" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">禁</text>
+        <circle cx="795" cy="304" r="6" fill="#f87171"/><text x="795" y="307" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">禁</text>
+        <circle cx="835" cy="304" r="6" fill="#f87171"/><text x="835" y="307" text-anchor="middle" fill="#08080c" font-size="7" font-weight="700">禁</text>
+        <!-- Legend bottom -->
+        <circle cx="730" cy="335" r="5" fill="#34d399"/><text x="745" y="338" fill="rgba(255,255,255,0.4)" font-size="9">推荐使用</text>
+        <circle cx="730" cy="355" r="5" fill="#fbbf24"/><text x="745" y="358" fill="rgba(255,255,255,0.4)" font-size="9">谨慎使用</text>
+        <circle cx="730" cy="375" r="5" fill="#f87171"/><text x="745" y="378" fill="rgba(255,255,255,0.4)" font-size="9">明确禁止</text>
+      </svg>
+    </div>
+
+    <h3>2.1 研究基础</h3>
+    <p>Writing-Skills 的说服原则不是凭空想象的，而是基于严谨的心理学研究：</p>
+    <div class="card accent">
+      <p><strong>Meincke et al. (2025)</strong> — 宾夕法尼亚大学，对 28,000 次 AI 对话的实验证明：说服技巧将合规率从 33% 提升到 72%（p &lt; .001），效果翻倍以上。</p>
+      <p style="margin-top:8px"><strong>Cialdini, R. B. (2021)</strong> — 《影响力：说服的心理学》，七大说服原则的实证基础。</p>
+    </div>
+    <p>核心假设是<strong>"类人模型"（Parahuman Model）</strong>：LLM 在包含这些说服模式的人类文本上训练，因此对 Authority（权威）语言、Commitment（承诺）序列、Social Proof（社会认同）模式等有自然的响应。</p>
+
+    <h3>2.2 七个说服原则完整解读</h3>
+
+    <details class="sub-collapse">
+      <summary>1. Authority（权威）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>对专业知识、资质或官方来源的服从倾向。</p>
+        <p><strong>心理学机制：</strong>人类（和 LLM）在训练数据中大量接触"权威 → 服从"模式。命令式语言消除了决策疲劳和合理化空间。</p>
+        <p><strong>在 Skill 中的用法：</strong></p>
+        <ul>
+          <li>命令式语言："YOU MUST"、"Never"、"Always"</li>
+          <li>不可谈判的框架："No exceptions"</li>
+        </ul>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">正面示例</div>
+            <pre style="margin:0"><code>Write code before test?
+Delete it. Start over.
+No exceptions.</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">反面示例</div>
+            <pre style="margin:0"><code>Consider writing tests
+first when feasible.</code></pre>
+          </div>
+        </div>
+        <p><strong>何时用：</strong>纪律强制型技能（TDD、验证要求）、安全关键实践、成熟最佳实践。</p>
+        <p><strong>何时不用：</strong>参考资料型技能（API 文档）、探索性工作流。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>2. Commitment（承诺/一致性）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>与先前行为、声明或公开承诺保持一致的心理倾向。</p>
+        <p><strong>心理学机制：</strong>一旦做出公开声明，人们（和 LLM）会感到内在压力去保持一致。Implementation Intentions（实施意图）"When X, do Y"比"generally do Y"更有效。</p>
+        <p><strong>在 Skill 中的用法：</strong></p>
+        <ul>
+          <li>要求公开声明："Announce skill usage"</li>
+          <li>强制明确选择："Choose A, B, or C"</li>
+          <li>使用追踪机制：TodoWrite 用于检查清单</li>
+        </ul>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">正面示例</div>
+            <pre style="margin:0"><code>When you find a skill, you
+MUST announce:
+"I'm using [Skill Name]"</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">反面示例</div>
+            <pre style="margin:0"><code>Consider letting your
+partner know which skill
+you're using.</code></pre>
+          </div>
+        </div>
+        <p><strong>何时用：</strong>多步骤流程、确保技能被实际遵循、问责机制。</p>
+        <p><strong>何时不用：</strong>简单的参考查询。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>3. Scarcity（稀缺/紧迫）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>时间限制或有限可用性产生的紧迫感。</p>
+        <p><strong>心理学机制：</strong>紧迫感防止拖延。"Before proceeding"、"Immediately after X"等时间锚点创造了不可延迟的执行触发器。</p>
+        <p><strong>在 Skill 中的用法：</strong></p>
+        <ul>
+          <li>时间约束："Before proceeding"</li>
+          <li>顺序依赖："Immediately after X"</li>
+        </ul>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">正面示例</div>
+            <pre style="margin:0"><code>After completing a task,
+IMMEDIATELY request code
+review before proceeding.</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">反面示例</div>
+            <pre style="margin:0"><code>You can review code
+when convenient.</code></pre>
+          </div>
+        </div>
+        <p><strong>何时用：</strong>即时验证需求、时间敏感工作流、防止"我等会儿再做"。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>4. Social Proof（社会认同）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>遵循他人行为或公认规范的心理倾向。</p>
+        <p><strong>心理学机制：</strong>"每个人都是这样做的"建立规范。失败模式描述（"X without Y = failure"）比单纯说"应该做 Y"更有力。</p>
+        <p><strong>在 Skill 中的用法：</strong></p>
+        <ul>
+          <li>普遍模式："Every time"、"Always"</li>
+          <li>失败模式："X without Y = failure"</li>
+        </ul>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">正面示例</div>
+            <pre style="margin:0"><code>Checklists without TodoWrite
+tracking = steps get skipped.
+Every time.</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">反面示例</div>
+            <pre style="margin:0"><code>Some people find TodoWrite
+helpful for checklists.</code></pre>
+          </div>
+        </div>
+        <p><strong>何时用：</strong>记录普遍实践、警告常见失败、强化标准。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>5. Unity（统一/认同）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>共享身份、"我们感"、群体归属感。</p>
+        <p><strong>心理学机制：</strong>"我们的代码库"、"我们是同事"等协作语言降低了对抗心理，建立了共享目标感。</p>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">正面示例</div>
+            <pre style="margin:0"><code>We're colleagues working
+together. I need your
+honest technical judgment.</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">反面示例</div>
+            <pre style="margin:0"><code>You should probably tell
+me if I'm wrong.</code></pre>
+          </div>
+        </div>
+        <p><strong>何时用：</strong>协作型工作流、建立团队文化、非层级实践。</p>
+        <p><strong>何时不用：</strong>纪律强制型技能（Unity 的柔和性会削弱 Authority）。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>6. Reciprocity（互惠）— 谨慎使用</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>回报所获好处的义务感。</p>
+        <p><strong>在 Skill 中的评估：</strong></p>
+        <pre><code><span class="str">How it works:
+- Use sparingly - can feel manipulative
+- Rarely needed in skills
+
+When to avoid:
+- Almost always (other principles more effective)</span></code></pre>
+        <p><strong>为何少用：</strong>其他原则（Authority、Commitment、Scarcity）在 skill 场景中效果更好，且不容易产生操纵感。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>7. Liking（好感）— 纪律型技能中明确禁止</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>偏好与喜欢的人合作。</p>
+        <p><strong>在 Skill 中的评估：</strong></p>
+        <pre><code><span class="str">How it works:
+- DON'T USE for compliance
+- Conflicts with honest feedback culture
+- Creates sycophancy
+
+When to avoid:
+- Always for discipline enforcement</span></code></pre>
+        <p><strong>为何在纪律型技能中禁止：</strong>Liking 会导致 agent 为了"讨好"用户而违反规则。这正是 AI Agent 最常见的失败模式之一 — sycophancy（谄媚）。当一个本应强制执行 TDD 的技能使用友善语气时，agent 可能会选择"用户想要的方式"而不是"正确的方式"。</p>
+        <p>这不是理论猜测 — Superpowers 项目有 94% 的 PR 拒绝率，大量被拒绝的 PR 来自那些使用友好语气但未能强制执行纪律的技能。</p>
+      </div>
+    </details>
+
+    <h3>2.3 三种技能类型的原则组合策略</h3>
+    <table>
+      <thead><tr><th>技能类型</th><th>使用原则</th><th>避免原则</th><th>组合逻辑</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>纪律强制型</strong><br><span style="font-size:11px;color:var(--text-tertiary)">Discipline-Enforcing</span></td>
+          <td><span class="tag-pill use">Authority</span> <span class="tag-pill use">Commitment</span> <span class="tag-pill use">Social Proof</span></td>
+          <td><span class="tag-pill avoid">Liking</span> <span class="tag-pill avoid">Reciprocity</span></td>
+          <td>需要最强力的行为控制。Liking 会引入谄媚，Reciprocity 效果不够直接</td>
+        </tr>
+        <tr>
+          <td><strong>引导型</strong><br><span style="font-size:11px;color:var(--text-tertiary)">Guidance/Technique</span></td>
+          <td><span class="tag-pill moderate">Moderate Authority</span> <span class="tag-pill use">Unity</span></td>
+          <td><span class="tag-pill avoid">Heavy Authority</span></td>
+          <td>需要引导但不过度约束。Heavy Authority 会限制 agent 的判断力</td>
+        </tr>
+        <tr>
+          <td><strong>协作型</strong><br><span style="font-size:11px;color:var(--text-tertiary)">Collaborative</span></td>
+          <td><span class="tag-pill use">Unity</span> <span class="tag-pill use">Commitment</span></td>
+          <td><span class="tag-pill avoid">Authority</span> <span class="tag-pill avoid">Liking</span></td>
+          <td>平等协作关系。Authority 会破坏协作感，Liking 会降低诚实度</td>
+        </tr>
+        <tr>
+          <td><strong>参考资料型</strong><br><span style="font-size:11px;color:var(--text-tertiary)">Reference</span></td>
+          <td><span class="tag-pill moderate">Clarity only</span></td>
+          <td><span class="tag-pill avoid">All persuasion</span></td>
+          <td>纯信息传递，不需要说服。清晰度是唯一要求</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.4 为什么 Liking 和 Reciprocity 在纪律型技能中被禁止</h3>
+    <div class="card red">
+      <p><strong>核心原因：</strong>AI Agent 的最大弱点是 sycophancy（谄媚） — 为了取悦用户而放弃正确判断。</p>
+      <p style="margin-top:8px">当你在一份纪律强制型技能中使用 Liking 原则时，你实际上是在告诉 agent："用户高兴比遵循规则更重要"。这与技能的目的一致性相反。</p>
+      <p style="margin-top:8px">Reciprocity 在 skill 场景中效果微弱是因为：skill 是一次性注入的系统提示，不存在"你帮了我，所以我欠你"的持续互动关系。而且，"欠债感"这类情绪在 agent 行为中的触发不如 Authority 的命令式语言可靠。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 3 ==================== -->
+<section class="section collapsed" id="s3">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">03</span>
+    <h2>设计模式实战对照表</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 3：设计模式在不同技能中的应用对照</div>
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <marker id="arrow3" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0, 6 2.5, 0 5" fill="rgba(245,158,11,0.4)"/></marker>
+        </defs>
+        <!-- Header row -->
+        <rect x="0" y="0" width="880" height="36" rx="0" fill="rgba(245,158,11,0.06)"/>
+        <text x="130" y="22" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">设计模式</text>
+        <text x="380" y="22" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">对应技能中的具体应用</text>
+        <text x="720" y="22" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">防御层覆盖</text>
+        <line x1="260" y1="0" x2="260" y2="380" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <line x1="580" y1="0" x2="580" y2="380" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <!-- Row 1: Iron Law -->
+        <rect x="0" y="36" width="880" height="50" fill="rgba(255,255,255,0.015)"/>
+        <rect x="20" y="46" width="100" height="30" rx="6" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1"/>
+        <text x="70" y="66" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Iron Law</text>
+        <text x="70" y="80" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">铁律</text>
+        <text x="380" y="56" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">TDD: "NO CODE WITHOUT FAILING TEST"</text>
+        <text x="380" y="72" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Writing-Skills: "NO SKILL WITHOUT FAILING TEST"</text>
+        <text x="380" y="84" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Verification: "Skip any step = lying"</text>
+        <!-- L0-L4 indicators -->
+        <rect x="620" y="46" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="635" y="58" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L0</text>
+        <rect x="658" y="46" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="673" y="58" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L1</text>
+        <rect x="696" y="46" width="30" height="18" rx="3" fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="0.5"/>
+        <text x="711" y="58" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">L2</text>
+        <rect x="734" y="46" width="30" height="18" rx="3" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="0.5"/>
+        <text x="749" y="58" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">L3</text>
+        <rect x="772" y="46" width="30" height="18" rx="3" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="0.5"/>
+        <text x="787" y="58" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">L4</text>
+        <text x="720" y="82" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">全层覆盖</text>
+        <!-- Row 2: 反合理化 -->
+        <rect x="0" y="86" width="880" height="50" fill="rgba(0,0,0,0)"/>
+        <rect x="20" y="96" width="100" height="30" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+        <text x="70" y="112" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="700">反合理化</text>
+        <text x="70" y="126" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">Rationalization</text>
+        <text x="380" y="106" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">TDD: 11条 Excuse→Reality 对照表</text>
+        <text x="380" y="122" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Debugging: 8条反合理化表格</text>
+        <text x="380" y="134" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">每条 Reality 精确击穿借口逻辑</text>
+        <rect x="620" y="96" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="635" y="108" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L0</text>
+        <rect x="658" y="96" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="673" y="108" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L1</text>
+        <rect x="696" y="96" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="711" y="108" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L2</text>
+        <rect x="734" y="96" width="30" height="18" rx="3" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="0.5"/>
+        <text x="749" y="108" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">L3</text>
+        <rect x="772" y="96" width="30" height="18" rx="3" fill="rgba(96,165,250,0.08)" stroke="rgba(96,165,250,0.3)" stroke-width="0.5"/>
+        <text x="787" y="108" text-anchor="middle" fill="rgba(96,165,250,0.5)" font-size="9">L4</text>
+        <!-- Row 3: Red Flags -->
+        <rect x="0" y="136" width="880" height="50" fill="rgba(255,255,255,0.015)"/>
+        <rect x="20" y="146" width="100" height="30" rx="6" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1"/>
+        <text x="70" y="162" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Red Flags</text>
+        <text x="70" y="176" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">红旗列表</text>
+        <text x="380" y="156" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">TDD: 13条红旗自检清单</text>
+        <text x="380" y="172" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Debugging: 11条红旗</text>
+        <text x="380" y="184" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">第一人称视角 — agent 脑中念头的自我识别</text>
+        <rect x="620" y="146" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="635" y="158" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L0</text>
+        <rect x="658" y="146" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="673" y="158" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L1</text>
+        <rect x="696" y="146" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="711" y="158" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L2</text>
+        <rect x="734" y="146" width="30" height="18" rx="3" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="0.5"/>
+        <text x="749" y="158" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">L3</text>
+        <rect x="772" y="146" width="30" height="18" rx="3" fill="rgba(96,165,250,0.08)" stroke="rgba(96,165,250,0.3)" stroke-width="0.5"/>
+        <text x="787" y="158" text-anchor="middle" fill="rgba(96,165,250,0.5)" font-size="9">L4</text>
+        <!-- Row 4: Gate Function -->
+        <rect x="0" y="186" width="880" height="50" fill="rgba(0,0,0,0)"/>
+        <rect x="20" y="196" width="100" height="30" rx="6" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1"/>
+        <text x="70" y="212" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">Gate Function</text>
+        <text x="70" y="226" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">门控函数</text>
+        <text x="380" y="206" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">Verification: IDENTIFY→RUN→READ→VERIFY→CLAIM</text>
+        <text x="380" y="222" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Debugging: Phase 4.5 "3次修复失败"计数器门控</text>
+        <text x="380" y="234" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">用客观标准替代主观判断</text>
+        <rect x="620" y="196" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="635" y="208" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L0</text>
+        <rect x="658" y="196" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="673" y="208" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L1</text>
+        <rect x="696" y="196" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="711" y="208" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L2</text>
+        <rect x="734" y="196" width="30" height="18" rx="3" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="0.5"/>
+        <text x="749" y="208" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">L3</text>
+        <rect x="772" y="196" width="30" height="18" rx="3" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="0.5"/>
+        <text x="787" y="208" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">L4</text>
+        <!-- Row 5: When/Then -->
+        <rect x="0" y="236" width="880" height="50" fill="rgba(255,255,255,0.015)"/>
+        <rect x="20" y="246" width="100" height="30" rx="6" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1"/>
+        <text x="70" y="262" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">When/Then</text>
+        <text x="70" y="276" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">触发器</text>
+        <text x="380" y="256" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">TDD: "Always: new features, bug fixes, refactoring"</text>
+        <text x="380" y="272" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Verification: "ALWAYS before: ANY claim of success"</text>
+        <text x="380" y="284" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Commitment 原则具象化，可机械判定</text>
+        <rect x="620" y="246" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="635" y="258" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L0</text>
+        <rect x="658" y="246" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="673" y="258" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L1</text>
+        <rect x="696" y="246" width="30" height="18" rx="3" fill="rgba(96,165,250,0.08)" stroke="rgba(96,165,250,0.3)" stroke-width="0.5"/>
+        <text x="711" y="258" text-anchor="middle" fill="rgba(96,165,250,0.5)" font-size="9">L2</text>
+        <rect x="734" y="246" width="30" height="18" rx="3" fill="rgba(96,165,250,0.08)" stroke="rgba(96,165,250,0.3)" stroke-width="0.5"/>
+        <text x="749" y="258" text-anchor="middle" fill="rgba(96,165,250,0.5)" font-size="9">L3</text>
+        <rect x="772" y="246" width="30" height="18" rx="3" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="0.5"/>
+        <text x="787" y="258" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">L4</text>
+        <!-- Row 6: Foundational Principle -->
+        <rect x="0" y="286" width="880" height="50" fill="rgba(0,0,0,0)"/>
+        <rect x="20" y="296" width="100" height="30" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="70" y="312" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">Foundation</text>
+        <text x="70" y="326" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">基础原则</text>
+        <text x="380" y="306" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">"Violating letter = violating spirit" — 元规则</text>
+        <text x="380" y="322" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">TDD / Verification / Debugging 三个技能一字不差</text>
+        <text x="380" y="334" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">堵住整类 "spirit not letter" 合理化</text>
+        <rect x="620" y="296" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="635" y="308" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L0</text>
+        <rect x="658" y="296" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="673" y="308" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L1</text>
+        <rect x="696" y="296" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="711" y="308" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L2</text>
+        <rect x="734" y="296" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="749" y="308" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L3</text>
+        <rect x="772" y="296" width="30" height="18" rx="3" fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="0.5"/>
+        <text x="787" y="308" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">L4</text>
+        <!-- Row 7: HARD-GATE -->
+        <rect x="0" y="336" width="880" height="44" fill="rgba(255,255,255,0.015)"/>
+        <rect x="20" y="346" width="100" height="26" rx="6" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1"/>
+        <text x="70" y="362" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">HARD-GATE</text>
+        <text x="380" y="356" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">TDD: "MANDATORY. Never skip." + Verify RED/GREEN</text>
+        <text x="380" y="372" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9">Debugging: "3次修复失败 → STOP + 架构质疑"</text>
+        <rect x="620" y="346" width="30" height="18" rx="3" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.3)" stroke-width="0.5"/>
+        <text x="635" y="358" text-anchor="middle" fill="rgba(248,113,113,0.5)" font-size="9">L0</text>
+        <rect x="658" y="346" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="673" y="358" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L1</text>
+        <rect x="696" y="346" width="30" height="18" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+        <text x="711" y="358" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">L2</text>
+        <rect x="734" y="346" width="30" height="18" rx="3" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="0.5"/>
+        <text x="749" y="358" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">L3</text>
+        <rect x="772" y="346" width="30" height="18" rx="3" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="0.5"/>
+        <text x="787" y="358" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">L4</text>
+        <!-- Bottom border -->
+        <line x1="0" y1="380" x2="880" y2="380" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <p>以下每个设计模式都从三个维度分析：<strong>writing-skills 的理论</strong>、<strong>实际 skill 中的应用</strong>、<strong>正反对比示例</strong>。</p>
+
+    <details class="sub-collapse">
+      <summary>Iron Law（铁律）</summary>
+      <div class="sub-content">
+        <p><strong>理论（writing-skills）：</strong></p>
+        <pre><code><span class="str">NO SKILL WITHOUT A FAILING TEST FIRST
+
+This applies to NEW skills AND EDITS to existing skills.
+Write skill before testing? Delete it. Start over.
+Edit skill without testing? Same violation.</span></code></pre>
+        <p><strong>在 TDD 中的应用：</strong></p>
+        <pre><code><span class="str">NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+
+Write code before the test? Delete it. Start over.
+
+No exceptions:
+- Don't keep it as "reference"
+- Don't "adapt" it while writing tests
+- Don't look at it
+- Delete means delete</span></code></pre>
+        <p><strong>设计要点：</strong>Iron Law 使用全大写、代码块包裹、"No exceptions"后跟具体否定列表。这种格式使它成为视觉上不可忽视的存在。</p>
+        <div class="comparison">
+          <div class="compare-item good">
+            <div class="label">有效 — 具体否定列表</div>
+            <pre style="margin:0"><code>No exceptions:
+- Don't keep it as "reference"
+- Don't "adapt" it while writing tests
+- Don't look at it
+- Delete means delete</code></pre>
+          </div>
+          <div class="compare-item bad">
+            <div class="label">无效 — 只有空泛警告</div>
+            <pre style="margin:0"><code>Please always write tests
+before code. No exceptions.</code></pre>
+          </div>
+        </div>
+        <p>无效版本的问题："Please"是 Liking 原则（被禁止），且没有堵住具体的合理化漏洞。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>反合理化表格（Rationalization Table）</summary>
+      <div class="sub-content">
+        <p><strong>理论（writing-skills）：</strong></p>
+        <pre><code><span class="str">Build Rationalization Table
+Capture rationalizations from baseline testing (see Testing section).
+Every excuse agents make goes in the table:
+
+| Excuse | Reality |
+|--------|---------|
+| "Too simple to test" | Simple code breaks. Test takes 30 seconds. |
+| "I'll test after" | Tests passing immediately prove nothing. |</span></code></pre>
+        <p><strong>在 TDD 中的应用（11条完整表格）：</strong></p>
+        <pre><code>| Excuse                                  | Reality                                                    |
+|-----------------------------------------|------------------------------------------------------------|
+| "Too simple to test"                    | Simple code breaks. Test takes 30 seconds.                 |
+| "I'll test after"                       | Tests passing immediately prove nothing.                   |
+| "Tests after achieve same goals"        | Tests-after = "what does this do?" Tests-first = "what     |
+|                                         | should this do?"                                           |
+| "Already manually tested"               | Ad-hoc ≠ systematic. No record, can't re-run.              |
+| "Deleting X hours is wasteful"          | Sunk cost fallacy. Keeping unverified code is tech debt.   |
+| "Keep as reference, write tests first"  | You'll adapt it. That's testing after. Delete means delete.|
+| "Need to explore first"                 | Fine. Throw away exploration, start with TDD.              |
+| "Test hard = design unclear"            | Listen to test. Hard to test = hard to use.                |
+| "TDD will slow me down"                 | TDD faster than debugging. Pragmatic = test-first.         |
+| "Manual test faster"                    | Manual doesn't prove edge cases. You'll re-test every change.|
+| "Existing code has no tests"            | You're improving it. Add tests for existing code.          |</code></pre>
+        <p><strong>在 Debugging 中的应用（8条）：</strong></p>
+        <pre><code>| Excuse                                       | Reality                                              |
+|----------------------------------------------|------------------------------------------------------|
+| "Issue is simple, don't need process"        | Simple issues have root causes too. Process is fast.  |
+| "Emergency, no time for process"              | Systematic debugging is FASTER than guess-and-check.  |
+| "Just try this first, then investigate"       | First fix sets the pattern. Do it right from start.   |
+| "I'll write test after confirming fix works"  | Untested fixes don't stick. Test first proves it.     |
+| "Multiple fixes at once saves time"           | Can't isolate what worked. Causes new bugs.           |
+| "Reference too long, I'll adapt the pattern"  | Partial understanding guarantees bugs. Read completely.|
+| "I see the problem, let me fix it"            | Seeing symptoms ≠ understanding root cause.           |
+| "One more fix attempt" (after 2+ failures)    | 3+ failures = architectural problem.                  |</code></pre>
+        <p><strong>设计要点：</strong>每条"Reality"都不是泛泛而谈，而是直接击穿借口的逻辑。例如"Tests after achieve same goals"的反击不是"you're wrong"，而是精确指出两种测试在认知层面的差异："Tests-after = 'what does this do?' Tests-first = 'what should this do?'"</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Red Flags 列表</summary>
+      <div class="sub-content">
+        <p><strong>理论（writing-skills）：</strong></p>
+        <pre><code><span class="str">Create Red Flags List
+Make it easy for agents to self-check when rationalizing:
+
+## Red Flags - STOP and Start Over
+
+- Code before test
+- "I already manually tested it"
+- "Tests after achieve the same purpose"
+- "It's about spirit not ritual"
+- "This is different because..."
+
+All of these mean: Delete code. Start over with TDD.</span></code></pre>
+        <p><strong>在 TDD 中的应用（13条红旗）：</strong></p>
+        <pre><code><span class="str">## Red Flags - STOP and Start Over
+
+- Code before test
+- Test after implementation
+- Test passes immediately
+- Can't explain why test failed
+- Tests added "later"
+- Rationalizing "just this once"
+- "I already manually tested it"
+- "Tests after achieve the same purpose"
+- "It's about spirit not ritual"
+- "Keep as reference" or "adapt existing code"
+- "Already spent X hours, deleting is wasteful"
+- "TDD is dogmatic, I'm being pragmatic"
+- "This is different because..."
+
+All of these mean: Delete code. Start over with TDD.</span></code></pre>
+        <p><strong>在 Debugging 中的应用：</strong></p>
+        <pre><code><span class="str">## Red Flags - STOP and Follow Process
+
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "Add multiple changes, run tests"
+- "Skip the test, I'll manually verify"
+- "It's probably X, let me fix that"
+- "I don't fully understand but this might work"
+- "Pattern says X but I'll adapt it differently"
+- "Here are the main problems: [lists fixes without investigation]"
+- Proposing solutions before tracing data flow
+- "One more fix attempt" (when already tried 2+)
+- "Each fix reveals new problem in different place"
+
+ALL of these mean: STOP. Return to Phase 1.</span></code></pre>
+        <p><strong>设计要点：</strong>红旗列表是从 agent 的第一人称视角写的 — 它们是 agent <em>在合理化时脑子里会冒出的念头</em>，不是第三人称的抽象规则。这种"自我对话"格式让 agent 在产生这些念头时能立即识别出"这是合理化，我应该停下来"。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Gate Function（门控函数）</summary>
+      <div class="sub-content">
+        <p><strong>理论来源：</strong>Gate Function 在 writing-skills 中没有直接定义，但在 verification-before-completion 中有完整实现。</p>
+        <p><strong>在 Verification 中的应用：</strong></p>
+        <pre><code><span class="str">## The Gate Function
+
+BEFORE claiming any status or expressing satisfaction:
+
+1. IDENTIFY: What command proves this claim?
+2. RUN: Execute the FULL command (fresh, complete)
+3. READ: Full output, check exit code, count failures
+4. VERIFY: Does output confirm the claim?
+   - If NO: State actual status with evidence
+   - If YES: State claim WITH evidence
+5. ONLY THEN: Make the claim
+
+Skip any step = lying, not verifying</span></code></pre>
+        <p><strong>设计要点：</strong>Gate Function 是一个<strong>决策前必须完成的步骤序列</strong>。它的关键是"Skip any step = lying, not verifying" — 这不是委婉的建议，而是将跳过步骤等同于不诚实行为。最后一行"Skip any step = lying"是 Authority 原则的极端应用。</p>
+        <p>配合 Common Failures 表格使用：</p>
+        <pre><code>| Claim              | Requires                            | Not Sufficient                |
+|--------------------|-------------------------------------|-------------------------------|
+| Tests pass         | Test command output: 0 failures      | Previous run, "should pass"  |
+| Linter clean       | Linter output: 0 errors             | Partial check, extrapolation |
+| Build succeeds     | Build command: exit 0               | Linter passing               |
+| Bug fixed          | Test original symptom: passes       | Code changed, assumed fixed  |
+| Regression test    | Red-green cycle verified            | Test passes once             |</code></pre>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>When/Then 触发器（Implementation Intentions）</summary>
+      <div class="sub-content">
+        <p><strong>理论（persuasion-principles.md）：</strong></p>
+        <pre><code><span class="str">Implementation intentions create automatic behavior:
+- Clear triggers + required actions = automatic execution
+- "When X, do Y" more effective than "generally do Y"
+- Reduces cognitive load on compliance</span></code></pre>
+        <p><strong>在 TDD 中的应用：</strong></p>
+        <pre><code><span class="str">## When to Use
+
+Always:
+- New features
+- Bug fixes
+- Refactoring
+- Behavior changes
+
+Thinking "skip TDD just this once"? Stop. That's rationalization.</span></code></pre>
+        <p><strong>在 Verification 中的应用：</strong></p>
+        <pre><code><span class="str">## When To Apply
+
+ALWAYS before:
+- ANY variation of success/completion claims
+- ANY expression of satisfaction
+- ANY positive statement about work state
+- Committing, PR creation, task completion
+- Moving to next task
+- Delegating to agents</span></code></pre>
+        <p><strong>设计要点：</strong>When/Then 触发器是 Commitment 原则的具象化。关键在于触发条件必须<strong>可机械判定</strong>（mechanically decidable）— agent 不需要主观判断"这算不算完成"，而是通过客观标准（是否运行了命令、是否看到了输出）来判定。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Commitment 宣布机制</summary>
+      <div class="sub-content">
+        <p><strong>理论（persuasion-principles.md）：</strong></p>
+        <pre><code><span class="str">How it works in skills:
+- Require announcements: "Announce skill usage"
+- Force explicit choices: "Choose A, B, or C"
+- Use tracking: TodoWrite for checklists</span></code></pre>
+        <p><strong>在 Writing-Skills 自身的应用：</strong></p>
+        <pre><code><span class="str">IMPORTANT: Use TodoWrite to create todos for EACH
+checklist item below.</span></code></pre>
+        <p><strong>设计要点：</strong>Commitment 宣布通过两种方式增强合规性：(1) 公开承诺产生一致性压力；(2) TodoWrite 追踪使进度可视化，agent 可以看到哪些步骤已完成、哪些未完成。检查清单 + TodoWrite = "Checklists without TodoWrite tracking = steps get skipped. Every time."</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>HARD-GATE（硬门控）</summary>
+      <div class="sub-content">
+        <p><strong>定义：</strong>在流程中设置不可绕过的检查点，agent 必须通过才能继续。</p>
+        <p><strong>在 TDD 中：</strong></p>
+        <pre><code><span class="str">### Verify RED - Watch It Fail
+
+MANDATORY. Never skip.
+
+$ npm test path/to/test.test.ts
+
+Confirm:
+- Test fails (not errors)
+- Failure message is expected
+- Fails because feature missing (not typos)
+
+Test passes? You're testing existing behavior. Fix test.
+Test errors? Fix error, re-run until it fails correctly.</span></code></pre>
+        <p><strong>在 Debugging 中（Phase 4.5 — 架构质疑门控）：</strong></p>
+        <pre><code><span class="str">4. If Fix Doesn't Work
+   - STOP
+   - Count: How many fixes have you tried?
+   - If < 3: Return to Phase 1, re-analyze
+   - If ≥ 3: STOP and question the architecture
+   - DON'T attempt Fix #4 without architectural discussion</span></code></pre>
+        <p><strong>设计要点：</strong>HARD-GATE 的核心是<strong>强制停止</strong>。"MANDATORY. Never skip."、"STOP"、大写字母 — 这些不是风格选择，而是经过测试验证的最有效的中断信号。Debugging 的"3次修复失败"门控特别精妙：它不要求 agent 判断"是否应该停止"（这需要主观判断），而是用<strong>计数器</strong>做客观判定。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>Foundational Principle（基础原则 — "Spirit vs Letter" 杀手锏）</summary>
+      <div class="sub-content">
+        <p><strong>理论（writing-skills）：</strong></p>
+        <pre><code><span class="str">Address "Spirit vs Letter" Arguments
+Add foundational principle early:
+
+"Violating the letter of the rules is violating
+the spirit of the rules."
+
+This cuts off entire class of "I'm following the spirit"
+rationalizations.</span></code></pre>
+        <p><strong>在 TDD 中：</strong></p>
+        <pre><code><span class="str">**Violating the letter of the rules is violating
+the spirit of the rules.**</span></code></pre>
+        <p><strong>在 Verification 中：</strong></p>
+        <pre><code><span class="str">**Violating the letter of this rule is violating
+the spirit of this rule.**</span></code></pre>
+        <p><strong>在 Debugging 中：</strong></p>
+        <pre><code><span class="str">**Violating the letter of this process is violating
+the spirit of debugging.**</span></code></pre>
+        <p><strong>设计要点：</strong>这是一个<strong>元规则</strong> — 它不定义具体行为，而是堵住一整类合理化。agent 经常使用"我在遵循精神而不是字面规定"来绕过规则。这条原则预先否定了这种论证。注意它在所有三个 skill 中几乎一字不差地出现 — 经过测试，这是堵住"spirit not letter"类借口的唯一有效方式。</p>
+        <p>在 TDD 的测试中，添加这条原则是让 agent 从选择 C（先写代码后补测试）变为选择 A（删除代码重新开始）的关键转折点。</p>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 4 ==================== -->
+<section class="section collapsed" id="s4">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">04</span>
+    <h2>Anthropic 最佳实践 vs Superpowers 设计哲学</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <h3>4.1 一致的建议</h3>
+    <table class="diff-table">
+      <thead><tr><th>建议主题</th><th>Anthropic</th><th>Superpowers</th><th>一致性</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>简洁性</strong></td>
+          <td>"Concise is key" — 上下文窗口是公共资源</td>
+          <td>Token Efficiency — getting-started &lt;150词，频繁加载 &lt;200词</td>
+          <td class="match">完全一致</td>
+        </tr>
+        <tr>
+          <td><strong>第三人称</strong></td>
+          <td>"Always write in third person"</td>
+          <td>"Write in third person (injected into system prompt)"</td>
+          <td class="match">完全一致</td>
+        </tr>
+        <tr>
+          <td><strong>渐进式披露</strong></td>
+          <td>"Progressive disclosure patterns"</td>
+          <td>"Separate files for heavy reference (100+ lines)"</td>
+          <td class="match">完全一致</td>
+        </tr>
+        <tr>
+          <td><strong>测试驱动</strong></td>
+          <td>"Build evaluations first"</td>
+          <td>"NO SKILL WITHOUT A FAILING TEST FIRST"</td>
+          <td class="partial">方向一致，强度不同</td>
+        </tr>
+        <tr>
+          <td><strong>工作流/检查清单</strong></td>
+          <td>"Break complex operations into clear, sequential steps"</td>
+          <td>TodoWrite 追踪 + 检查清单</td>
+          <td class="partial">方向一致，Superpowers 增加了追踪机制</td>
+        </tr>
+        <tr>
+          <td><strong>避免嵌套引用</strong></td>
+          <td>"Keep references one level deep from SKILL.md"</td>
+          <td>"Why no @ links: @ syntax force-loads files immediately"</td>
+          <td class="match">一致</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 Superpowers 故意偏离的地方</h3>
+
+    <details class="sub-collapse">
+      <summary>偏离 1：Description 的定义 — 只写触发条件 vs 写功能+触发</summary>
+      <div class="sub-content">
+        <p><strong>Anthropic：</strong></p>
+        <pre><code><span class="str">The description field enables Skill discovery and should
+include both what the Skill does and when to use it.
+
+Effective example:
+description: Extract text and tables from PDF files, fill
+forms, merge documents. Use when working with PDF files...</span></code></pre>
+        <p><strong>Superpowers：</strong></p>
+        <pre><code><span class="str">CRITICAL: Description = When to Use, NOT What the Skill Does
+
+The description should ONLY describe triggering conditions.
+Do NOT summarize the skill's process or workflow.
+
+❌ BAD: Summarizes workflow
+description: Use when executing plans - dispatches subagent
+per task with code review between tasks
+
+✅ GOOD: Just triggering conditions, no workflow summary
+description: Use when executing implementation plans with
+independent tasks in the current session</span></code></pre>
+        <p><strong>为什么偏离：</strong>Superpowers 有<strong>实证数据</strong>支持。测试发现，当 description 包含工作流摘要时，Claude 会遵循 description 而跳过技能正文。Anthropic 的建议更通用，但没有考虑到这种"捷径效应"。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>偏离 2：说服原则 — Superpowers 独有的行为工程</summary>
+      <div class="sub-content">
+        <p><strong>Anthropic：</strong>没有提及任何说服心理学原则。其"Set appropriate degrees of freedom"更多是关于信息架构而非行为控制。</p>
+        <p><strong>Superpowers：</strong>基于 Cialdini + Meincke et al. 的研究，系统性地使用 Authority、Commitment、Scarcity、Social Proof 等原则来<strong>塑造 agent 行为</strong>。</p>
+        <p><strong>为什么偏离：</strong>Anthropic 的文档面向通用场景，侧重"如何让 Claude 正确理解你的意图"。Superpowers 面向一个更难的问题："如何让 Claude 在<strong>有动机违反</strong>的情况下仍然遵循规则"。后者需要完全不同的工具箱 — 不是更好的解释，而是更强的行为约束。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>偏离 3：反合理化 — Superpowers 独有的防御层</summary>
+      <div class="sub-content">
+        <p><strong>Anthropic：</strong>没有"合理化"的概念。它假设如果你写清楚了，Claude 就会遵循。</p>
+        <p><strong>Superpowers：</strong>明确假设 Claude <em>会尝试绕过规则</em>，并为此构建了多层防御：</p>
+        <ul>
+          <li><strong>合理化表格：</strong>预判并反击每个具体借口</li>
+          <li><strong>红旗列表：</strong>让 agent 自检合理化念头</li>
+          <li><strong>基础原则：</strong>堵住整类论证（"spirit not letter"）</li>
+          <li><strong>No exceptions + 具体否定：</strong>堵住每个漏洞</li>
+        </ul>
+        <p><strong>为什么偏离：</strong>实证经验。Superpowers 在 TDD 技能上经历了 6 轮 RED-GREEN-REFACTOR，发现了 10+ 种独特的合理化方式。如果不主动防御，agent <em>一定</em>会找到绕过方法。</p>
+      </div>
+    </details>
+
+    <details class="sub-collapse">
+      <summary>偏离 4：测试方法 — 压力场景 vs 标准评估</summary>
+      <div class="sub-content">
+        <p><strong>Anthropic：</strong></p>
+        <pre><code><span class="str">Build evaluations first
+1. Identify gaps: Run Claude on representative tasks
+2. Create evaluations: Build three scenarios
+3. Establish baseline: Measure performance without Skill
+4. Write minimal instructions
+5. Iterate</span></code></pre>
+        <p><strong>Superpowers：</strong></p>
+        <pre><code><span class="str">Pressure Types:
+| Pressure    | Example                                    |
+|-------------|--------------------------------------------|
+| Time        | Emergency, deadline, deploy window closing  |
+| Sunk cost   | Hours of work, "waste" to delete            |
+| Authority   | Senior says skip it, manager overrides      |
+| Economic    | Job, promotion, company survival            |
+| Exhaustion  | End of day, already tired                   |
+| Social      | Looking dogmatic, seeming inflexible        |
+| Pragmatic   | "Being pragmatic vs dogmatic"               |
+
+Best tests combine 3+ pressures.</span></code></pre>
+        <p><strong>为什么偏离：</strong>标准评估（"Run Claude on representative tasks"）只能测试正常情况下的行为。Superpowers 的压力场景测试的是<strong>最坏情况</strong> — 当 agent 有强烈动机违反规则时。这是纪律强制型技能的真正考验。</p>
+      </div>
+    </details>
+
+    <h3>4.3 对读者的启发</h3>
+    <div class="card cyan">
+      <p><strong>启发 1：理解你的问题域。</strong>Anthropic 的最佳实践适用于"信息传递"类技能。如果你的技能需要"行为控制"，你需要 Superpowers 的额外工具。</p>
+      <p style="margin-top:8px"><strong>启发 2：实证优先于理论。</strong>Anthropic 说"include both what and when"，Superpowers 说"only when"。差异来自实际测试数据。永远用测试验证你的假设。</p>
+      <p style="margin-top:8px"><strong>启发 3：多层防御。</strong>不要指望单一机制就能确保合规。Iron Law + 合理化表格 + 红旗列表 + 基础原则 = 四层防御，每层堵不同类型的漏洞。</p>
+      <p style="margin-top:8px"><strong>启发 4：设计你的测试来制造失败。</strong>不是测试"agent 能不能做对"，而是测试"agent 在多大压力下会做错"。</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 5 ==================== -->
+<section class="section collapsed" id="s5">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">05</span>
+    <h2>Skill 质量审查清单</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <p>以下清单基于 writing-skills 的全部理论，按维度组织。每个检查项说明<strong>检查什么</strong>、<strong>为什么重要</strong>、<strong>不合格表现</strong>。</p>
+
+    <h3>A. 结构完整性</h3>
+    <ul class="checklist">
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">YAML frontmatter 包含 name 和 description</div>
+          <div class="check-desc"><strong>为什么：</strong>Claude 使用这两个字段做技能发现。缺失 = 技能永远不会被触发。<strong>不合格：</strong>缺少 frontmatter、name 含特殊字符、description 超过 1024 字符。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">Description 以 "Use when..." 开头，只写触发条件</div>
+          <div class="check-desc"><strong>为什么：</strong>测试证明 description 中的工作流摘要会让 Claude 跳过正文。<strong>不合格：</strong>description 包含 "do X then Y"、"dispatches subagent" 等流程描述。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有 Overview 部分包含核心原则（1-2句）</div>
+          <div class="check-desc"><strong>为什么：</strong>Overview 是 Claude 扫描判断"这个技能相关吗"的第一站。<strong>不合格：</strong>没有 Overview、Overview 超过 3 句话、没有核心原则陈述。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有 When to Use 和 When NOT to Use</div>
+          <div class="check-desc"><strong>为什么：</strong>明确边界防止技能被过度使用。<strong>不合格：</strong>只有 Use 没有 Don't Use。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有 Common Mistakes 部分</div>
+          <div class="check-desc"><strong>为什么：</strong>预先警告常见错误比事后修正有效 10 倍。<strong>不合格：</strong>缺失此部分。</div>
+        </div>
+      </li>
+    </ul>
+
+    <h3>B. 说服原则合规</h3>
+    <ul class="checklist">
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">纪律强制型技能使用了 Authority + Commitment + Social Proof</div>
+          <div class="check-desc"><strong>为什么：</strong>这是经过 28,000 次对话验证的最有效组合。<strong>不合格：</strong>使用了 Liking/Reciprocity、使用 "Please"/"Consider" 等柔和措辞。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">参考/技术型技能没有使用不必要的说服原则</div>
+          <div class="check-desc"><strong>为什么：</strong>过度说服会浪费 token 且可能产生意外行为。<strong>不合格：</strong>在 API 文档中使用 "YOU MUST"。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">没有使用 Liking 原则来强制合规</div>
+          <div class="check-desc"><strong>为什么：</strong>Liking 导致 sycophancy（谄媚），这是 AI Agent 的最大弱点。<strong>不合格：</strong>使用 "I want to help"、"I understand your frustration" 等讨好性语言来软化规则。</div>
+        </div>
+      </li>
+    </ul>
+
+    <h3>C. 防御层覆盖</h3>
+    <ul class="checklist">
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有 Iron Law（铁律）声明</div>
+          <div class="check-desc"><strong>为什么：</strong>铁律是不可忽视的视觉锚点，使用全大写 + 代码块 + "No exceptions"。<strong>不合格：</strong>没有铁律、铁律使用小写、铁律后有例外条款。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有 Foundational Principle（"Violating letter = violating spirit"）</div>
+          <div class="check-desc"><strong>为什么：</strong>堵住"我遵循精神不遵循字面"这一整类合理化。<strong>不合格：</strong>缺失、措辞不同（经过测试，必须使用精确措辞才有效）。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有合理化表格（Excuse → Reality）</div>
+          <div class="check-desc"><strong>为什么：</strong>预判并反击每个具体借口。每条 Reality 必须直接击穿借口的逻辑。<strong>不合格：</strong>缺失、Reality 部分是泛泛而谈（如 "you're wrong"）。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有 Red Flags 列表</div>
+          <div class="check-desc"><strong>为什么：</strong>让 agent 在合理化时能自我识别。列表项必须是 agent 的第一人称念头。<strong>不合格：</strong>缺失、列表项是第三人称抽象规则。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">"No exceptions" 后跟具体否定列表</div>
+          <div class="check-desc"><strong>为什么：</strong>空泛的 "no exceptions" 不如具体的 "Don't keep as reference / Don't adapt / Don't look at it" 有效。<strong>不合格：</strong>只有 "no exceptions" 没有具体列表。</div>
+        </div>
+      </li>
+    </ul>
+
+    <h3>D. When/Then 可机械判定</h3>
+    <ul class="checklist">
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">每个 When/Then 触发条件可以通过客观标准判定</div>
+          <div class="check-desc"><strong>为什么：</strong>如果触发条件需要主观判断，agent 会找到合理化空间。<strong>不合格：</strong>"When it seems appropriate"、"When you feel like" 等主观触发器。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">HARD-GATE 使用计数器或客观标准而非主观判断</div>
+          <div class="check-desc"><strong>为什么：</strong>Debugging 的"3次修复失败"门控比"当你觉得应该停止时"有效得多。<strong>不合格：</strong>"Stop when appropriate"、"Use your judgment"。</div>
+        </div>
+      </li>
+    </ul>
+
+    <h3>E. 零上下文原则</h3>
+    <ul class="checklist">
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">技能在没有之前对话上下文的情况下仍然可理解</div>
+          <div class="check-desc"><strong>为什么：</strong>技能是注入到新对话中的，不能依赖之前的上下文。<strong>不合格：</strong>"As we discussed earlier"、"Remember the issue from last session"。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">代码示例完整可运行</div>
+          <div class="check-desc"><strong>为什么：</strong>片段式示例需要 agent 填充，增加出错概率。<strong>不合格：</strong>"// ... your code here"、省略关键导入。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">只有一个优秀的示例，不是多语言稀释</div>
+          <div class="check-desc"><strong>为什么：</strong>一个优秀示例胜过多个平庸示例。Claude 擅长移植代码。<strong>不合格：</strong>example-js.js、example-py.py、example-go.go。</div>
+        </div>
+      </li>
+    </ul>
+
+    <h3>F. 测试验证</h3>
+    <ul class="checklist">
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">有基线测试记录（RED phase）</div>
+          <div class="check-desc"><strong>为什么：</strong>没有基线 = 不知道技能到底解决了什么问题。<strong>不合格：</strong>跳过 RED 直接写技能。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">压力场景组合了 3+ 种压力</div>
+          <div class="check-desc"><strong>为什么：</strong>单一压力测试不够，agent 能抵抗单一压力但在组合压力下会崩溃。<strong>不合格：</strong>只测试了"请遵循规则"的学术场景。</div>
+        </div>
+      </li>
+      <li>
+        <div class="check"></div>
+        <div class="check-text">
+          <div class="check-label">进行了 Meta-Testing</div>
+          <div class="check-desc"><strong>为什么：</strong>Meta-Testing 揭示"技能是清楚的还是 agent 选择忽略"。<strong>不合格：</strong>测试通过但没有 meta-test。</div>
+        </div>
+      </li>
+    </ul>
+
+  </div>
+</section>
+
+<!-- ==================== SECTION 6 ==================== -->
+<section class="section collapsed" id="s6">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">06</span>
+    <h2>从业务问题到 Skill 设计的工作流</h2>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="section-content">
+
+    <div class="arch-diagram">
+      <div class="diagram-title">图 4：从业务问题到 Skill 设计的转化漏斗</div>
+      <svg viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'Inter',system-ui,sans-serif">
+        <defs>
+          <linearGradient id="funnelGrad1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(248,113,113,0.12)"/><stop offset="100%" stop-color="rgba(248,113,113,0.04)"/></linearGradient>
+          <linearGradient id="funnelGrad2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(251,191,36,0.12)"/><stop offset="100%" stop-color="rgba(251,191,36,0.04)"/></linearGradient>
+          <linearGradient id="funnelGrad3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(245,158,11,0.12)"/><stop offset="100%" stop-color="rgba(245,158,11,0.04)"/></linearGradient>
+          <linearGradient id="funnelGrad4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(96,165,250,0.12)"/><stop offset="100%" stop-color="rgba(96,165,250,0.04)"/></linearGradient>
+          <linearGradient id="funnelGrad5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(52,211,153,0.12)"/><stop offset="100%" stop-color="rgba(52,211,153,0.04)"/></linearGradient>
+          <marker id="arrow4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="rgba(245,158,11,0.5)"/></marker>
+        </defs>
+        <!-- Funnel Layer 1: Widest -->
+        <polygon points="100,20 780,20 740,88 140,88" fill="url(#funnelGrad1)" stroke="#f87171" stroke-width="1" stroke-opacity="0.3"/>
+        <text x="440" y="48" text-anchor="middle" fill="#f87171" font-size="13" font-weight="700">模糊业务问题</text>
+        <text x="440" y="68" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">"Agent 总是跳过测试" / "代码质量不稳定"</text>
+        <text x="440" y="82" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Brainstorming Step 1: 什么行为需要改变？</text>
+        <!-- Arrow -->
+        <line x1="440" y1="88" x2="440" y2="108" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" marker-end="url(#arrow4)"/>
+        <!-- Funnel Layer 2 -->
+        <polygon points="140,112 740,112 710,180 170,180" fill="url(#funnelGrad2)" stroke="#fbbf24" stroke-width="1" stroke-opacity="0.3"/>
+        <text x="440" y="138" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">收敛问题 1: 确定技能类型</text>
+        <text x="440" y="156" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">纪律强制型 / 技术指导型 / 协作型 / 参考资料型</text>
+        <text x="440" y="172" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Brainstorming Step 2: agent 有动机违反吗？失败代价？</text>
+        <!-- Arrow -->
+        <line x1="440" y1="180" x2="440" y2="200" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" marker-end="url(#arrow4)"/>
+        <!-- Funnel Layer 3 -->
+        <polygon points="170,204 710,204 680,272 200,272" fill="url(#funnelGrad3)" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.3"/>
+        <text x="440" y="230" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">收敛问题 2: 选择说服原则组合</text>
+        <text x="440" y="248" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">Authority + Commitment + Social Proof / Unity + Clarity</text>
+        <text x="440" y="264" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Brainstorming Step 3: 违反动机多强？需要多少防御层？</text>
+        <!-- Arrow -->
+        <line x1="440" y1="272" x2="440" y2="292" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" marker-end="url(#arrow4)"/>
+        <!-- Funnel Layer 4 -->
+        <polygon points="200,296 680,296 660,364 220,364" fill="url(#funnelGrad4)" stroke="#60a5fa" stroke-width="1" stroke-opacity="0.3"/>
+        <text x="440" y="322" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">收敛问题 3: 设计五维度需求</text>
+        <text x="440" y="340" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">触发条件 → 输入 → 流程 → 验证 → 终止条件</text>
+        <text x="440" y="356" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="9">Brainstorming Step 4: 每个维度可机械判定？</text>
+        <!-- Arrow -->
+        <line x1="440" y1="364" x2="440" y2="384" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" marker-end="url(#arrow4)"/>
+        <!-- Funnel Layer 5: Narrowest -->
+        <polygon points="220,388 660,388 640,430 240,430" fill="url(#funnelGrad5)" stroke="#34d399" stroke-width="1.5" stroke-opacity="0.5"/>
+        <text x="440" y="405" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">收敛问题 4: 验证可测试性</text>
+        <text x="440" y="422" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">Brainstorming Step 5: 能构造 3+ 组合压力场景？</text>
+        <!-- Side annotations -->
+        <text x="56" y="54" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="9" transform="rotate(-90 56 54)">模糊度递减</text>
+        <line x1="68" y1="20" x2="68" y2="430" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="830" y="230" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="9" transform="rotate(90 830 230)">精确度递增</text>
+        <line x1="818" y1="20" x2="818" y2="430" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+      </svg>
+    </div>
+
+    <p>这部分为"能看懂别人的 skill，但自己设计时想法模糊"的开发者提供系统化方法。</p>
+
+    <h3>Step 1: 用 Brainstorming 探索业务问题</h3>
+    <p>在你打开编辑器写 SKILL.md 之前，先用以下问题清单搞清楚你要解决什么问题：</p>
+    <div class="card accent">
+      <p><strong>问题探索清单：</strong></p>
+      <ol>
+        <li><strong>什么行为需要改变？</strong>不是"什么文档要写"，而是"agent 现在在做什么错事"。</li>
+        <li><strong>谁受益？</strong>是你、你的团队、还是所有用户？如果是特定团队，考虑作为独立插件而非核心技能。</li>
+        <li><strong>失败的代价是什么？</strong>如果 agent 不遵循这个技能，最坏情况是什么？代价越高，需要的防御层越强。</li>
+        <li><strong>agent 有动机违反吗？</strong>如果违反规则能节省时间/精力，agent 一定会尝试绕过。需要纪律强制型设计。</li>
+        <li><strong>这个问题是否已经被解决？</strong>搜索现有 skill — 不要重复造轮子。</li>
+        <li><strong>这是不是一个"真正的问题"？</strong>你或你的用户是否<strong>实际经历过</strong>这个问题？还是"理论上可能发生"？</li>
+      </ol>
+    </div>
+    <p><strong>常见陷阱：</strong></p>
+    <ul>
+      <li>"我的审查 agent 标记了这些问题" — 这不是问题陈述，这是代理发现问题</li>
+      <li>"理论上可能导致问题" — 没有真实经历就不是真正的问题</li>
+      <li>"帮这个 repo 贡献一些东西" — 没有具体问题就不要动手</li>
+    </ul>
+
+    <h3>Step 2: 收敛出精确需求</h3>
+    <p>将模糊的业务问题收敛为 skill 的五个维度：</p>
+    <table>
+      <thead><tr><th>维度</th><th>要回答的问题</th><th>示例（TDD）</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>触发条件</strong></td>
+          <td>什么时候应该激活这个技能？</td>
+          <td>"implementing any feature or bugfix, before writing implementation code"</td>
+        </tr>
+        <tr>
+          <td><strong>输入</strong></td>
+          <td>agent 需要什么信息？</td>
+          <td>功能需求、现有代码</td>
+        </tr>
+        <tr>
+          <td><strong>流程</strong></td>
+          <td>必须遵循哪些步骤？顺序是什么？</td>
+          <td>RED → Verify RED → GREEN → Verify GREEN → REFACTOR</td>
+        </tr>
+        <tr>
+          <td><strong>验证</strong></td>
+          <td>如何确认每一步都正确完成？</td>
+          <td>运行测试命令、检查退出码、确认失败/通过</td>
+        </tr>
+        <tr>
+          <td><strong>终止条件</strong></td>
+          <td>什么时候流程结束？什么情况下需要回退？</td>
+          <td>所有测试通过 + 输出干净 / 测试失败则修复代码</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>关键检查：</strong>这五个维度是否都可以<strong>机械判定</strong>？如果"触发条件"是"当 agent 觉得需要时"，那就需要重新定义。</p>
+
+    <h3>Step 3: 选择说服原则组合</h3>
+    <p>基于你在 Step 1 中的分析：</p>
+    <div class="card">
+      <p><strong>决策树：</strong></p>
+      <ol>
+        <li><strong>技能类型是什么？</strong>
+          <ul>
+            <li>纪律强制型 → Authority + Commitment + Social Proof，禁止 Liking/Reciprocity</li>
+            <li>技术指导型 → Moderate Authority + Unity</li>
+            <li>协作型 → Unity + Commitment，避免 Authority</li>
+            <li>参考资料型 → Clarity only，不需要说服</li>
+          </ul>
+        </li>
+        <li><strong>违反的动机有多强？</strong>
+          <ul>
+            <li>弱（没有明显好处去违反）→ 标准说服力度</li>
+            <li>强（违反能节省大量时间）→ 加强 Authority + 添加更多反合理化</li>
+          </ul>
+        </li>
+        <li><strong>需要多少层防御？</strong>
+          <ul>
+            <li>参考型 → 0 层防御</li>
+            <li>技术型 → 1-2 层（Red Flags）</li>
+            <li>纪律型 → 4+ 层（Iron Law + 基础原则 + 合理化表格 + 红旗列表）</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
+
+    <h3>Step 4: 编写初版</h3>
+    <p><strong>重要：先写压力测试场景，再写技能。</strong></p>
+    <div class="flow-step">
+      <div class="step-num red-step">1</div>
+      <div class="step-body">
+        <div class="step-title">编写 3+ 压力场景</div>
+        <div class="step-desc">组合 Time + Sunk Cost + Authority + Exhaustion 等压力。每个场景必须有具体选项（A/B/C），不是开放式问题。使用真实文件路径、真实时间约束。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num red-step">2</div>
+      <div class="step-body">
+        <div class="step-title">运行基线测试</div>
+        <div class="step-desc">在不加载技能的情况下运行压力场景。记录 agent 的选择和逐字合理化借口。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num green-step">3</div>
+      <div class="step-body">
+        <div class="step-title">编写最小技能</div>
+        <div class="step-desc">只针对基线测试中发现的<strong>具体失败</strong>编写。结构遵循：YAML frontmatter → Overview → When to Use → Core Pattern → Iron Law → Common Mistakes。</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num green-step">4</div>
+      <div class="step-body">
+        <div class="step-title">验证技能有效</div>
+        <div class="step-desc">加载技能后重新运行压力场景。agent 应该选择正确选项。</div>
+      </div>
+    </div>
+
+    <h3>Step 5: 自检和迭代</h3>
+    <p>使用第 5 部分的质量审查清单逐项检查。然后进入 REFACTOR 循环：</p>
+
+    <details class="sub-collapse">
+      <summary>REFACTOR 循环详细步骤</summary>
+      <div class="sub-content">
+        <ol>
+          <li><strong>发现新合理化：</strong>如果 agent 在有技能的情况下仍然违反，逐字记录新借口。</li>
+          <li><strong>添加具体反制：</strong>
+            <ul>
+              <li>在 Iron Law 的 "No exceptions" 下添加具体否定</li>
+              <li>在合理化表格中添加新行</li>
+              <li>在红旗列表中添加新条目</li>
+              <li>在 description 中添加违规症状关键词</li>
+            </ul>
+          </li>
+          <li><strong>重新测试：</strong>用更新后的技能重新运行所有压力场景。</li>
+          <li><strong>Meta-Testing：</strong>问 agent "你读了技能但仍然违反了。如何改写技能使其更清楚？"
+            <ul>
+              <li>如果 agent 说"技能很清楚，我选择忽略" → 需要更强的基础原则</li>
+              <li>如果 agent 说"技能应该说 X" → 添加其建议</li>
+              <li>如果 agent 说"我没看到 Y 部分" → 重组使关键点更突出</li>
+            </ul>
+          </li>
+          <li><strong>重复</strong>直到 agent 在最大压力下仍然遵循规则。</li>
+        </ol>
+      </div>
+    </details>
+
+    <div class="card green">
+      <p><strong>最终提醒：</strong>Writing-Skills 自身就是它所教授原则的完美示范。它的 Iron Law 与 TDD 的 Iron Law 结构完全相同。它有合理化表格、红旗列表、基础原则。它用 RED-GREEN-REFACTOR 来开发自身。当你设计自己的 skill 时，以 Writing-Skills 为模板。</p>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <p>Based on superpowers/skills/writing-skills — Generated for skill architecture study</p>
+</footer>
+
+</div>
+
+<script>
+function toggleSection(header) {
+  const section = header.parentElement;
+  section.classList.toggle('collapsed');
+}
+
+// Expand all / Collapse all
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'e' && e.altKey) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('collapsed'));
+  }
+  if (e.key === 'c' && e.altKey) {
+    document.querySelectorAll('.section').forEach(s => s.classList.add('collapsed'));
+  }
+});
+</script>
+
+</body>
+</html>
