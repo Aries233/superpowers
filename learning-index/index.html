@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superpowers 深度设计伴读</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2308080c'/%3E%3Cpath d='M18 40L32 12L46 40H36L32 50L28 40H18Z' fill='%23f59e0b'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #08080c;
+      --surface: rgba(255, 255, 255, 0.045);
+      --surface-strong: rgba(255, 255, 255, 0.075);
+      --surface-hover: rgba(255, 255, 255, 0.11);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(245, 158, 11, 0.28);
+      --text: #f4f1ea;
+      --muted: rgba(244, 241, 234, 0.68);
+      --soft: rgba(244, 241, 234, 0.43);
+      --accent: #f59e0b;
+      --accent-2: #f97316;
+      --green: #34d399;
+      --red: #fb7185;
+      --shadow: rgba(0, 0, 0, 0.45);
+      --radius: 18px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(245, 158, 11, 0.18), transparent 26rem),
+        radial-gradient(circle at 82% 18%, rgba(249, 115, 22, 0.14), transparent 24rem),
+        radial-gradient(circle at 45% 84%, rgba(52, 211, 153, 0.08), transparent 26rem),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .shell {
+      position: relative;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 72px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .logo {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(249, 115, 22, 0.08));
+      box-shadow: 0 14px 40px rgba(245, 158, 11, 0.12);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    nav a {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 13px;
+      transition: 180ms ease;
+    }
+
+    nav a:hover {
+      color: var(--text);
+      border-color: var(--border-strong);
+      background: var(--surface-hover);
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 32px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 780px;
+      font-size: clamp(42px, 7vw, 88px);
+      line-height: 0.95;
+      letter-spacing: -0.07em;
+    }
+
+    .hero p {
+      margin: 22px 0 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+    .hero-card {
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      padding: 24px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025));
+      box-shadow: 0 30px 80px var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero-card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .hero-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 30px 0 72px;
+    }
+
+    .quick-links a,
+    .card,
+    .problem,
+    .module,
+    .note-link {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(14px);
+    }
+
+    .quick-links a {
+      padding: 18px;
+      color: var(--muted);
+      transition: 180ms ease;
+    }
+
+    .quick-links a:hover,
+    .problem:hover,
+    .module:hover,
+    .note-link:hover {
+      transform: translateY(-3px);
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+    }
+
+    .quick-links strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    section { margin-bottom: 82px; }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 44px);
+      letter-spacing: -0.04em;
+    }
+
+    .section-head p {
+      margin: 0;
+      max-width: 560px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .problem, .module, .note-link {
+      display: block;
+      padding: 22px;
+      min-height: 170px;
+      transition: 180ms ease;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .problem h3, .module h3, .note-link h3 {
+      margin: 0 0 10px;
+      font-size: 19px;
+      letter-spacing: -0.02em;
+    }
+
+    .problem p, .module p, .note-link p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .map {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .card { padding: 24px; }
+
+    .flow {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      border-radius: 9px;
+      background: rgba(245, 158, 11, 0.14);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .step span:last-child {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .warning {
+      border-color: rgba(251, 113, 133, 0.28);
+      background: rgba(251, 113, 133, 0.06);
+    }
+
+    .ok {
+      border-color: rgba(52, 211, 153, 0.24);
+      background: rgba(52, 211, 153, 0.055);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      color: var(--soft);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    footer {
+      color: var(--soft);
+      border-top: 1px solid var(--border);
+      padding-top: 28px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 900px) {
+      header, .hero, .map, .section-head { grid-template-columns: 1fr; display: grid; }
+      header { align-items: start; }
+      nav { justify-content: flex-start; }
+      .quick-links, .grid, .notes-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 24px, 1180px); padding-top: 18px; }
+      .quick-links, .grid, .notes-grid { grid-template-columns: 1fr; }
+      .hero { margin-bottom: 22px; }
+      h1 { font-size: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="../README.md">
+        <span class="logo">SP</span>
+        <span>Superpowers Design Companion</span>
+      </a>
+      <nav aria-label="页面导航">
+        <a href="#read-first">先读什么</a>
+        <a href="#problems">遇到问题</a>
+        <a href="#map">设计地图</a>
+        <a href="#transfer">迁移模式</a>
+        <a href="#notes">伴读笔记</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <div>
+          <div class="eyebrow">Deep reading workspace</div>
+          <h1 id="title">Superpowers 深度设计伴读</h1>
+          <p>这个学习目录不是为了“快速使用 Superpowers”，而是为了拆解它为什么能约束 AI 编程代理、如何把技能串成方法论，以及哪些设计可以迁移到你自己的项目。</p>
+        </div>
+        <aside class="hero-card">
+          <h2>学习目标</h2>
+          <p>从 README 理解整体方法论，从 skills 理解行为塑形，从 CLAUDE.md / AGENTS.md 理解质量门禁，从 tests / docs 理解它如何证明这些流程真的有效。</p>
+        </aside>
+      </section>
+
+      <div class="quick-links" id="read-first">
+        <a href="../README.md"><strong>README</strong>先建立整体工作流和哲学框架。</a>
+        <a href="../CLAUDE.md"><strong>CLAUDE.md</strong>看它如何约束 Claude Code 贡献行为。</a>
+        <a href="../AGENTS.md"><strong>AGENTS.md</strong>看跨 agent 的共同贡献守则。</a>
+        <a href="../skills/using-superpowers/SKILL.md"><strong>Bootstrap Skill</strong>理解自动触发体系从哪里开始。</a>
+      </div>
+
+      <section id="problems">
+        <div class="section-head">
+          <h2>遇到问题，去哪里看？</h2>
+          <p>下面不是文件目录复刻，而是按学习问题组织的入口。每张卡都指向真实仓库文件。</p>
+        </div>
+        <div class="grid">
+          <a class="problem" href="../README.md#the-basic-workflow">
+            <span class="tag">workflow</span>
+            <h3>我想知道它到底解决什么问题</h3>
+            <p>看 Basic Workflow 和 Philosophy：Superpowers 把 AI 编程从自由发挥改造成分阶段、可审查、可验证的方法论。</p>
+          </a>
+          <a class="problem" href="../skills/brainstorming/SKILL.md">
+            <span class="tag">design</span>
+            <h3>为什么写代码前要先设计？</h3>
+            <p>看 brainstorming skill：它用强门禁阻止 agent 直接开写，先把模糊想法转成可确认的设计。</p>
+          </a>
+          <a class="problem" href="../skills/writing-plans/SKILL.md">
+            <span class="tag">planning</span>
+            <h3>设计通过后如何变成可执行任务？</h3>
+            <p>看 writing-plans：它要求计划具体到文件、步骤、验证方式，降低后续 agent 自由解释空间。</p>
+          </a>
+          <a class="problem" href="../skills/subagent-driven-development/SKILL.md">
+            <span class="tag">subagents</span>
+            <h3>为什么要用子代理执行？</h3>
+            <p>看 subagent-driven-development：每个任务隔离执行，再经过规格符合性和代码质量两轮审查。</p>
+          </a>
+          <a class="problem" href="../skills/test-driven-development/SKILL.md">
+            <span class="tag">tdd</span>
+            <h3>它怎样避免“看起来完成了”？</h3>
+            <p>看 test-driven-development：红绿重构把“声明完成”换成“先失败、再通过”的证据链。</p>
+          </a>
+          <a class="problem" href="../skills/systematic-debugging/SKILL.md">
+            <span class="tag">debug</span>
+            <h3>遇到 bug 为什么不能猜？</h3>
+            <p>看 systematic-debugging：它要求先找根因，再做最小修复，避免 agent 用补丁掩盖问题。</p>
+          </a>
+          <a class="problem" href="../skills/requesting-code-review/SKILL.md">
+            <span class="tag">review</span>
+            <h3>代码审查在流程中怎么卡住质量？</h3>
+            <p>看 requesting-code-review：审查不是礼貌动作，而是继续前进前的质量门。</p>
+          </a>
+          <a class="problem" href="../docs/testing.md">
+            <span class="tag">evidence</span>
+            <h3>它怎么测试“技能真的改变行为”？</h3>
+            <p>看 docs/testing.md 和 tests：重点是运行真实 Claude Code 会话并验证 transcript，而不是只检查文本。</p>
+          </a>
+          <a class="problem" href="../docs/README.opencode.md">
+            <span class="tag">harness</span>
+            <h3>它如何适配不同编码工具？</h3>
+            <p>看 OpenCode 文档和 GEMINI.md：同一套方法论通过 bootstrap、技能注册和工具映射适配不同 harness。</p>
+          </a>
+        </div>
+      </section>
+
+      <section id="map">
+        <div class="section-head">
+          <h2>核心设计地图</h2>
+          <p>Superpowers 的关键不是“有很多技能”，而是技能之间组成了一条有门禁、有证据、有复盘的开发流水线。</p>
+        </div>
+        <div class="map">
+          <div class="card">
+            <span class="tag">mainline</span>
+            <h3>开发主链路</h3>
+            <div class="flow">
+              <div class="step"><span class="num">01</span><span>用户意图进入后，先触发 using-superpowers / brainstorming，而不是直接实现。</span></div>
+              <div class="step"><span class="num">02</span><span>brainstorming 把想法变成设计，并要求用户确认。</span></div>
+              <div class="step"><span class="num">03</span><span>writing-plans 把设计拆成小任务和验证步骤。</span></div>
+              <div class="step"><span class="num">04</span><span>using-git-worktrees 隔离实现环境，降低污染主线风险。</span></div>
+              <div class="step"><span class="num">05</span><span>TDD、subagent-driven-development、code review 形成执行和审查闭环。</span></div>
+              <div class="step"><span class="num">06</span><span>finishing-a-development-branch 做完成前验证和收尾选择。</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <span class="tag">support</span>
+            <h3>支撑系统</h3>
+            <div class="flow">
+              <div class="step"><span class="num">A</span><span>CLAUDE.md / AGENTS.md 保护 human partner，不让 agent 产出低质量 PR。</span></div>
+              <div class="step"><span class="num">B</span><span>skills 目录把行为协议模块化，每个技能负责一个可触发场景。</span></div>
+              <div class="step"><span class="num">C</span><span>hooks 和 harness 文档负责把方法论接入不同工具。</span></div>
+              <div class="step"><span class="num">D</span><span>tests 用真实会话 transcript 验证 agent 是否真的按流程行动。</span></div>
+              <div class="step"><span class="num">E</span><span>贡献规则阻止 speculative、bulk、domain-specific、fabricated 这类高风险改动。</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="transfer">
+        <div class="section-head">
+          <h2>迁移到你自己的项目</h2>
+          <p>学习 Superpowers 时，不要只复制文件；更值得迁移的是它把 agent 行为收窄到“可确认、可执行、可验证”的设计方式。</p>
+        </div>
+        <div class="grid">
+          <a class="module ok" href="notes/transfer-patterns.md#行为塑形模式">
+            <span class="tag">copy idea</span>
+            <h3>行为塑形</h3>
+            <p>用强约束、红旗表、不可跳过的检查点，降低 agent 自作主张。</p>
+          </a>
+          <a class="module ok" href="notes/transfer-patterns.md#流程链模式">
+            <span class="tag">copy idea</span>
+            <h3>流程链</h3>
+            <p>把“做功能”拆成设计、计划、实现、审查、完成验证，而不是一次性提示词。</p>
+          </a>
+          <a class="module ok" href="notes/transfer-patterns.md#证据优先模式">
+            <span class="tag">copy idea</span>
+            <h3>证据优先</h3>
+            <p>要求测试、transcript、diff、真实问题描述，让完成状态有证据。</p>
+          </a>
+          <a class="module warning" href="notes/transfer-patterns.md#不要照抄什么">
+            <span class="tag">do not copy blindly</span>
+            <h3>不要照抄什么</h3>
+            <p>不要直接照搬 Superpowers 的语气、PR 规则、跨 harness 复杂度；先适配你的项目规模。</p>
+          </a>
+          <a class="module" href="../skills/writing-skills/SKILL.md">
+            <span class="tag">skill design</span>
+            <h3>如何写自己的技能</h3>
+            <p>看 writing-skills，理解技能不是普通文档，而是会塑造 agent 行为的操作协议。</p>
+          </a>
+          <a class="module" href="../tests/claude-code/README.md">
+            <span class="tag">evaluation</span>
+            <h3>如何验证技能有效</h3>
+            <p>看 tests/claude-code：好的技能要能通过会话行为证明，而不是只看起来合理。</p>
+          </a>
+        </div>
+      </section>
+
+      <section id="notes">
+        <div class="section-head">
+          <h2>本地伴读笔记</h2>
+          <p>这些文件是你的学习工作区，可以继续补充章节、截图、案例和迁移实验。</p>
+        </div>
+        <div class="notes-grid">
+          <a class="note-link" href="notes/architecture-overview.md">
+            <span class="tag">note</span>
+            <h3>架构总览伴读</h3>
+            <p>解释仓库结构、核心流程、技能分层、质量门禁，以及建议阅读顺序。</p>
+          </a>
+          <a class="note-link" href="notes/transfer-patterns.md">
+            <span class="tag">note</span>
+            <h3>可迁移设计模式</h3>
+            <p>把 Superpowers 的思想拆成你可以带到自己项目中的设计模式。</p>
+          </a>
+          <a class="note-link" href="pages/design-map.html">
+            <span class="tag">visual</span>
+            <h3>可视化设计地图</h3>
+            <p>用一张图看清主链路、支撑系统和迁移关系。</p>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>本目录只新增学习材料，不修改 Superpowers 源码。当前定位是“深度伴读初始化版”，后续可以继续扩展 chapters、case-studies、exercises，但现在先保持轻量。</p>
+      <p class="mono">learning-index/ · notes/ · pages/ · assets/</p>
+    </footer>
+  </div>
+</body>
+</html>
