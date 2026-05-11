@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superpowers 设计地图</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2308080c'/%3E%3Cpath d='M18 40L32 12L46 40H36L32 50L28 40H18Z' fill='%23f59e0b'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #08080c;
+      --surface: rgba(255, 255, 255, 0.045);
+      --surface-strong: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hot: rgba(245, 158, 11, 0.32);
+      --text: #f4f1ea;
+      --muted: rgba(244, 241, 234, 0.66);
+      --soft: rgba(244, 241, 234, 0.42);
+      --accent: #f59e0b;
+      --accent-2: #f97316;
+      --green: #34d399;
+      --red: #fb7185;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        radial-gradient(circle at 15% 12%, rgba(245, 158, 11, 0.19), transparent 28rem),
+        radial-gradient(circle at 86% 8%, rgba(249, 115, 22, 0.13), transparent 24rem),
+        radial-gradient(circle at 50% 88%, rgba(52, 211, 153, 0.08), transparent 26rem),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 46px 46px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .shell {
+      position: relative;
+      width: min(1220px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 70px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+
+    .back {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      transition: 180ms ease;
+    }
+
+    .back:hover {
+      color: var(--text);
+      border-color: var(--border-hot);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .meta {
+      color: var(--soft);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .hero {
+      max-width: 860px;
+      margin-bottom: 42px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 7vw, 86px);
+      line-height: 0.95;
+      letter-spacing: -0.07em;
+    }
+
+    .hero p {
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.75;
+    }
+
+    .canvas {
+      display: grid;
+      grid-template-columns: 300px 1fr 300px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .panel, .node, .lane {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 22px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(16px);
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2, .lane h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .pill-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pill {
+      display: block;
+      padding: 12px 13px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--muted);
+      transition: 180ms ease;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .pill:hover {
+      color: var(--text);
+      border-color: var(--border-hot);
+      background: rgba(245, 158, 11, 0.08);
+      transform: translateY(-2px);
+    }
+
+    .lane {
+      padding: 24px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.028));
+    }
+
+    .flow {
+      display: grid;
+      gap: 14px;
+    }
+
+    .node {
+      position: relative;
+      padding: 18px;
+      min-height: 102px;
+      transition: 180ms ease;
+    }
+
+    .node:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-hot);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .node:not(:last-child)::after {
+      content: "↓";
+      position: absolute;
+      left: 50%;
+      bottom: -23px;
+      transform: translateX(-50%);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 18px;
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 17px;
+    }
+
+    .node span {
+      display: block;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .tag {
+      display: inline-flex;
+      margin-bottom: 14px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .bottom {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .bottom .panel { min-height: 210px; }
+
+    .ok { border-color: rgba(52, 211, 153, 0.24); }
+    .warn { border-color: rgba(251, 113, 133, 0.26); }
+
+    @media (max-width: 1080px) {
+      .canvas { grid-template-columns: 1fr; }
+      .bottom { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 24px, 1220px); }
+      header { align-items: flex-start; flex-direction: column; }
+      h1 { font-size: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="back" href="../index.html">← 返回伴读首页</a>
+      <div class="meta">learning-index/pages/design-map.html</div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="eyebrow">Architecture map</div>
+        <h1>Superpowers 设计地图</h1>
+        <p>这张图把 Superpowers 拆成三层：左侧是启动和适配系统，中间是开发主链路，右侧是质量与贡献门禁。学习时先看主链路，再看两侧支撑系统。</p>
+      </section>
+
+      <section class="canvas" aria-label="Superpowers 设计地图">
+        <aside class="panel">
+          <span class="tag">bootstrap</span>
+          <h2>启动与适配层</h2>
+          <p>这一层决定 agent 是否能在正确时机知道“我应该使用技能”。没有 bootstrap，skills 只是磁盘上的文档。</p>
+          <div class="pill-list">
+            <a class="pill" href="../../skills/using-superpowers/SKILL.md">using-superpowers：技能系统入口</a>
+            <a class="pill" href="../../GEMINI.md">GEMINI.md：Gemini 环境入口</a>
+            <a class="pill" href="../../docs/README.opencode.md">OpenCode plugin：注册技能与工具映射</a>
+            <a class="pill" href="../../hooks/session-start">session-start hook：会话启动注入</a>
+            <a class="pill" href="../../scripts/sync-to-codex-plugin.sh">Codex 同步脚本</a>
+          </div>
+        </aside>
+
+        <section class="lane">
+          <span class="tag">main workflow</span>
+          <h2>开发主链路</h2>
+          <div class="flow">
+            <a class="node" href="../../skills/brainstorming/SKILL.md">
+              <strong>1. Brainstorming</strong>
+              <span>在写代码前澄清目标、约束、成功标准，并把想法变成设计。</span>
+            </a>
+            <a class="node" href="../../skills/writing-plans/SKILL.md">
+              <strong>2. Writing Plans</strong>
+              <span>把已批准设计拆成足够具体的小任务、文件路径和验证步骤。</span>
+            </a>
+            <a class="node" href="../../skills/using-git-worktrees/SKILL.md">
+              <strong>3. Using Git Worktrees</strong>
+              <span>为实现创建隔离工作区，降低污染主线和误伤用户改动的风险。</span>
+            </a>
+            <a class="node" href="../../skills/test-driven-development/SKILL.md">
+              <strong>4. Test-Driven Development</strong>
+              <span>通过红绿重构让实现建立在可见证据上，而不是完成声明上。</span>
+            </a>
+            <a class="node" href="../../skills/subagent-driven-development/SKILL.md">
+              <strong>5. Subagent-Driven Development</strong>
+              <span>用子代理执行任务，再分别做规格符合性和代码质量审查。</span>
+            </a>
+            <a class="node" href="../../skills/finishing-a-development-branch/SKILL.md">
+              <strong>6. Finish Branch</strong>
+              <span>完成所有任务后验证状态，并让用户选择合并、PR、保留或丢弃。</span>
+            </a>
+          </div>
+        </section>
+
+        <aside class="panel">
+          <span class="tag">quality gates</span>
+          <h2>质量与贡献门禁</h2>
+          <p>这一层保护项目和 human partner，防止 agent 为了显得主动而提交低质量、无证据或不属于 core 的改动。</p>
+          <div class="pill-list">
+            <a class="pill" href="../../CLAUDE.md">CLAUDE.md：Claude Code 贡献规则</a>
+            <a class="pill" href="../../AGENTS.md">AGENTS.md：通用 agent 贡献规则</a>
+            <a class="pill" href="../../skills/requesting-code-review/SKILL.md">requesting-code-review：审查门</a>
+            <a class="pill" href="../../skills/verification-before-completion/SKILL.md">verification-before-completion：完成前验证</a>
+            <a class="pill" href="../../docs/testing.md">docs/testing.md：真实会话测试</a>
+          </div>
+        </aside>
+      </section>
+
+      <section class="bottom" aria-label="迁移视角">
+        <div class="panel ok">
+          <span class="tag">transfer</span>
+          <h2>最值得迁移</h2>
+          <p>迁移“先设计、再计划、再验证”的流程链；迁移强门禁；迁移完成必须有证据的原则。</p>
+          <a class="pill" href="../notes/transfer-patterns.md#最小迁移方案">查看最小迁移方案</a>
+        </div>
+        <div class="panel warn">
+          <span class="tag">caution</span>
+          <h2>不要直接照抄</h2>
+          <p>不要照抄它的开源贡献语气、跨 harness 复杂度和所有 PR 约束。你的项目应该先做轻量适配。</p>
+          <a class="pill" href="../notes/transfer-patterns.md#不要照抄什么">查看不要照抄什么</a>
+        </div>
+        <div class="panel">
+          <span class="tag">next</span>
+          <h2>下一步阅读</h2>
+          <p>先读架构总览，再读迁移模式；然后挑 2-3 个 skills 深读，不要一口气读完整个仓库。</p>
+          <a class="pill" href="../notes/architecture-overview.md">打开架构总览伴读</a>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
